@@ -273,6 +273,10 @@
         .checklist-item.completed {
             opacity: 0.6;
         }
+        .checklist-item.skipped {
+            opacity: 0.5;
+            background: #f9fafb;
+        }
         .checklist-item-header {
             display: flex;
             align-items: center;
@@ -794,7 +798,9 @@
                 container.innerHTML = sortedWorkflows.map(workflow => {
                     const progress = this.calculateProgress(workflow);
                     const checklistCount = workflow.checklist ? workflow.checklist.length : 0;
-                    const completedCount = workflow.checklist ? workflow.checklist.filter(c => this.normalizeCompleted(c)).length : 0;
+                    const completedCount = workflow.checklist ? workflow.checklist.filter(c => 
+                        this.normalizeCompleted(c) || c.skipped === true
+                    ).length : 0;
                     const isNew = this.lastImportedWorkflowIds.includes(workflow.id);
                     const cardClass = isNew ? 'workflow-card new-workflow' : 'workflow-card';
                     const newBadge = isNew ? '<span class="new-badge">NEW</span>' : '';
@@ -820,7 +826,10 @@
                 if (!workflow.checklist || workflow.checklist.length === 0) {
                     return workflow.completedDate ? 100 : 0;
                 }
-                const completed = workflow.checklist.filter(item => this.normalizeCompleted(item)).length;
+                // 건너뛴 항목도 완료된 것으로 간주하여 진행률에 포함
+                const completed = workflow.checklist.filter(item => 
+                    this.normalizeCompleted(item) || item.skipped === true
+                ).length;
                 return Math.round((completed / workflow.checklist.length) * 100);
             }
 
@@ -848,18 +857,61 @@
                     if (body) {
                         body.innerHTML = workflow.checklist.map((item, index) => {
                             const isCompleted = this.normalizeCompleted(item);
+                            const isSkipped = item.skipped === true;
+                            const itemNumber = index + 1;
+                            
+                            // 분기 버튼 생성
+                            let branchButtons = '';
+                            if (item.branchOptions && !isSkipped && !isCompleted && !item.branchActionTaken) {
+                                const validOptions = item.branchOptions.filter(opt => opt.action && opt.action.trim() !== '');
+                                if (validOptions.length > 0) {
+                                    branchButtons = `
+                                        <div style="display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap;">
+                                            ${validOptions.map(opt => `
+                                                <button class="btn btn-small" 
+                                                        onclick="event.stopPropagation(); app.handleBranchOption(${workflowId}, ${index}, '${this.escapeHtml(opt.action)}', '${this.escapeHtml(opt.label)}')"
+                                                        style="padding: 6px 12px; font-size: 0.8rem; background: ${opt.color || 'var(--accent)'}; color: white; border: none; border-radius: 6px;">
+                                                    ${this.escapeHtml(opt.label)}
+                                                </button>
+                                            `).join('')}
+                                        </div>
+                                    `;
+                                }
+                            }
+                            
+                            // 건너뛴 항목 표시
+                            const skipInfo = isSkipped ? `<div style="font-size: 0.8rem; color: #ef4444; margin-top: 4px;">🚫 건너뜀${item.skipReason ? ': ' + this.escapeHtml(item.skipReason) : ''}</div>` : '';
+                            
+                            // 실행취소 버튼 (분기 처리된 경우)
+                            const undoButton = (isCompleted && item.branchActionTaken) ? `
+                                <button class="btn btn-small" 
+                                        onclick="event.stopPropagation(); app.undoBranchOption(${workflowId}, ${index})"
+                                        style="padding: 4px 8px; font-size: 0.75rem; background: #6c757d; color: white; margin-top: 6px;">
+                                    ↩️ 실행취소
+                                </button>
+                            ` : '';
+                            
                             return `
-                                <div class="checklist-item ${isCompleted ? 'completed' : ''}">
+                                <div class="checklist-item ${isCompleted ? 'completed' : ''} ${isSkipped ? 'skipped' : ''}" style="${isSkipped ? 'opacity: 0.6;' : ''}">
                                     <div class="checklist-item-header">
-                                        <input type="checkbox" class="checklist-checkbox" ${isCompleted ? 'checked' : ''} 
-                                               onchange="app.toggleChecklistItem(${workflowId}, ${index})">
-                                        <span class="checklist-text ${isCompleted ? 'completed' : ''}">
+                                        ${isSkipped ? 
+                                            '<span style="font-size: 1.2rem; color: #9ca3af; width: 30px; text-align: center;">🚫</span>' :
+                                            `<input type="checkbox" class="checklist-checkbox" ${isCompleted ? 'checked' : ''} 
+                                                   onchange="app.toggleChecklistItem(${workflowId}, ${index})">`
+                                        }
+                                        <span style="font-weight: 600; color: var(--accent); min-width: 30px; font-size: 0.9rem;">[${itemNumber}]</span>
+                                        <span class="checklist-text ${isCompleted ? 'completed' : ''}" style="flex: 1;">
                                             ${this.escapeHtml(item.text || '')}
                                         </span>
-                                        <button class="btn btn-primary btn-small" onclick="app.showAIGuide(${workflowId}, ${index})">
-                                            💡 AI
-                                        </button>
+                                        ${!isSkipped ? `
+                                            <button class="btn btn-primary btn-small" onclick="event.stopPropagation(); app.showAIGuide(${workflowId}, ${index})" style="padding: 6px 10px; font-size: 0.8rem;">
+                                                💡 AI
+                                            </button>
+                                        ` : ''}
                                     </div>
+                                    ${skipInfo}
+                                    ${branchButtons}
+                                    ${undoButton}
                                 </div>
                             `;
                         }).join('');
@@ -1270,17 +1322,15 @@ ${deadlineInfo ? `- 마감일 고려: ${deadlineInfo.includes('오늘 마감') ?
                             <button class="close-btn" onclick="this.closest('.modal').remove()">×</button>
                         </div>
                         <div class="modal-body">
-                            <div style="margin-bottom: 20px; color: var(--text-gray);">
-                                가져올 업무: ${projectCount}개
+                            <div style="margin-bottom: 20px; color: var(--text-gray); font-size: 0.9rem;">
+                                가져올 업무: <strong>${projectCount}개</strong>
                             </div>
-                            <div style="display: flex; flex-direction: column; gap: 15px;">
-                                <button class="btn btn-primary" onclick="app.processImport('asIs')" style="padding: 20px; text-align: left;">
-                                    <div style="font-weight: 600; margin-bottom: 8px;">그대로 가져오기</div>
-                                    <div style="font-size: 0.9rem; color: var(--text-gray);">원본 날짜와 체크 상태를 그대로 유지합니다</div>
+                            <div style="display: flex; flex-direction: column; gap: 12px;">
+                                <button class="btn btn-primary" onclick="app.processImport('asIs')" style="padding: 16px; text-align: center; font-weight: 600;">
+                                    그대로 가져오기
                                 </button>
-                                <button class="btn btn-secondary" onclick="app.processImport('new')" style="padding: 20px; text-align: left;">
-                                    <div style="font-weight: 600; margin-bottom: 8px;">새 업무로 시작</div>
-                                    <div style="font-size: 0.9rem; color: var(--text-gray);">오늘 날짜로 설정하고 모든 체크를 해제합니다</div>
+                                <button class="btn btn-secondary" onclick="app.processImport('new')" style="padding: 16px; text-align: center; font-weight: 600;">
+                                    새 업무로 시작
                                 </button>
                             </div>
                         </div>
@@ -1492,6 +1542,125 @@ ${deadlineInfo ? `- 마감일 고려: ${deadlineInfo.includes('오늘 마감') ?
                 const div = document.createElement('div');
                 div.textContent = text;
                 return div.innerHTML;
+            }
+
+            // 분기 옵션 처리 (건너뛰기)
+            handleBranchOption(workflowId, index, action, label) {
+                const workflow = this.allData.workflows.find(w => w.id === workflowId);
+                if (!workflow || !workflow.checklist) return;
+
+                const currentItem = workflow.checklist[index];
+                
+                // 1. 현재 항목 완료 처리
+                currentItem.completed = true;
+                currentItem.completedAt = new Date().toISOString();
+                currentItem.result = currentItem.result || {};
+                currentItem.result.text = `[자동 입력] ${label} 선택으로 인한 분기 처리됨`;
+                
+                // 분기 실행 이력 저장
+                currentItem.branchActionTaken = {
+                    action: action,
+                    label: label,
+                    timestamp: new Date().toISOString()
+                };
+                
+                // 2. 액션 파싱 및 처리 (예: "skip:6-14, 16, 18-20")
+                if (action.startsWith('skip:')) {
+                    const rangesStr = action.split(':')[1];
+                    const parts = rangesStr.split(',').map(s => s.trim());
+                    
+                    parts.forEach(part => {
+                        let start, end;
+                        
+                        if (part.includes('-')) {
+                            [start, end] = part.split('-').map(n => parseInt(n));
+                        } else {
+                            start = parseInt(part);
+                            end = start;
+                        }
+                        
+                        if (start && end) {
+                            if (start > end) [start, end] = [end, start];
+                            
+                            for (let i = start - 1; i < end; i++) { // 1-based to 0-based
+                                if (workflow.checklist[i]) {
+                                    workflow.checklist[i].skipped = true;
+                                    workflow.checklist[i].skipReason = `${label} (${currentItem.text})`;
+                                    workflow.checklist[i].completed = false;
+                                }
+                            }
+                        }
+                    });
+                }
+
+                this.saveWorkflow(workflow);
+                this.showToast('success', '🔀', `${label} 처리되었습니다.`);
+                
+                // UI 업데이트
+                if (this.currentWorkflowId === workflowId) {
+                    this.showChecklist(workflowId);
+                } else {
+                    this.displayWorkflows();
+                }
+            }
+
+            // 분기 실행 취소 (되돌리기)
+            undoBranchOption(workflowId, index) {
+                const workflow = this.allData.workflows.find(w => w.id === workflowId);
+                if (!workflow || !workflow.checklist) return;
+
+                const currentItem = workflow.checklist[index];
+                if (!currentItem.branchActionTaken) return;
+
+                if (!confirm('분기 처리를 취소하고 원래대로 되돌리시겠습니까?\n(건너뛰었던 항목들이 다시 활성화됩니다)')) return;
+
+                const { action, label } = currentItem.branchActionTaken;
+                
+                // 1. skip된 항목들 복구
+                if (action && action.startsWith('skip:')) {
+                    const rangesStr = action.split(':')[1];
+                    const parts = rangesStr.split(',').map(s => s.trim());
+                    
+                    parts.forEach(part => {
+                        let start, end;
+                        if (part.includes('-')) {
+                            [start, end] = part.split('-').map(n => parseInt(n));
+                        } else {
+                            start = parseInt(part);
+                            end = start;
+                        }
+                        
+                        if (start && end) {
+                            if (start > end) [start, end] = [end, start];
+                            
+                            for (let i = start - 1; i < end; i++) {
+                                if (workflow.checklist[i]) {
+                                    if (workflow.checklist[i].skipReason && workflow.checklist[i].skipReason.startsWith(label)) {
+                                        delete workflow.checklist[i].skipped;
+                                        delete workflow.checklist[i].skipReason;
+                                    }
+                                }
+                            }
+                        }
+                    });
+                }
+
+                // 2. 현재 항목 상태 복구
+                currentItem.completed = false;
+                currentItem.completedAt = null;
+                if (currentItem.result && currentItem.result.text && currentItem.result.text.includes('[자동 입력]')) {
+                    currentItem.result.text = '';
+                }
+                delete currentItem.branchActionTaken;
+
+                this.saveWorkflow(workflow);
+                this.showToast('success', '↩️', '분기 처리가 취소되었습니다.');
+                
+                if (this.currentWorkflowId === workflowId) {
+                    this.showChecklist(workflowId);
+                } else {
+                    this.displayWorkflows();
+                }
             }
 
             async deleteWorkflow(workflowId) {
@@ -1815,3 +1984,4 @@ ${deadlineInfo ? `- 마감일 고려: ${deadlineInfo.includes('오늘 마감') ?
     </script>
 </body>
 </html>
+
