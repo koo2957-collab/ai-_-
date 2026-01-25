@@ -867,13 +867,21 @@
                                 if (validOptions.length > 0) {
                                     branchButtons = `
                                         <div style="display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap;">
-                                            ${validOptions.map(opt => `
-                                                <button class="btn btn-small" 
-                                                        onclick="event.stopPropagation(); app.handleBranchOption(${workflowId}, ${index}, '${this.escapeHtml(opt.action)}', '${this.escapeHtml(opt.label)}')"
-                                                        style="padding: 6px 12px; font-size: 0.8rem; background: ${opt.color || 'var(--accent)'}; color: white; border: none; border-radius: 6px;">
-                                                    ${this.escapeHtml(opt.label)}
-                                                </button>
-                                            `).join('')}
+                                            ${validOptions.map((opt, optIdx) => {
+                                                // 안전한 이스케이프: JSON.stringify 사용
+                                                const safeAction = JSON.stringify(opt.action);
+                                                const safeLabel = JSON.stringify(opt.label);
+                                                return `
+                                                    <button class="btn btn-small branch-option-btn" 
+                                                            data-workflow-id="${workflowId}"
+                                                            data-item-index="${index}"
+                                                            data-option-index="${optIdx}"
+                                                            onclick="event.stopPropagation(); app.handleBranchOption(${workflowId}, ${index}, ${safeAction}, ${safeLabel})"
+                                                            style="padding: 6px 12px; font-size: 0.8rem; background: ${opt.color || 'var(--accent)'}; color: white; border: none; border-radius: 6px;">
+                                                        ${this.escapeHtml(opt.label)}
+                                                    </button>
+                                                `;
+                                            }).join('')}
                                         </div>
                                     `;
                                 }
@@ -1553,7 +1561,7 @@ ${deadlineInfo ? `- 마감일 고려: ${deadlineInfo.includes('오늘 마감') ?
                 
                 // 1. 현재 항목 완료 처리
                 currentItem.completed = true;
-                currentItem.completedAt = new Date().toISOString();
+                currentItem.completedAt = new Date().toLocaleString('ko-KR');
                 currentItem.result = currentItem.result || {};
                 currentItem.result.text = `[자동 입력] ${label} 선택으로 인한 분기 처리됨`;
                 
@@ -1582,8 +1590,9 @@ ${deadlineInfo ? `- 마감일 고려: ${deadlineInfo.includes('오늘 마감') ?
                         if (start && end) {
                             if (start > end) [start, end] = [end, start];
                             
-                            for (let i = start - 1; i < end; i++) { // 1-based to 0-based
-                                if (workflow.checklist[i]) {
+                            // 1-based index를 0-based로 변환하고 end 포함
+                            for (let i = start - 1; i <= end - 1; i++) {
+                                if (i >= 0 && i < workflow.checklist.length && workflow.checklist[i]) {
                                     workflow.checklist[i].skipped = true;
                                     workflow.checklist[i].skipReason = `${label} (${currentItem.text})`;
                                     workflow.checklist[i].completed = false;
@@ -1633,8 +1642,9 @@ ${deadlineInfo ? `- 마감일 고려: ${deadlineInfo.includes('오늘 마감') ?
                         if (start && end) {
                             if (start > end) [start, end] = [end, start];
                             
-                            for (let i = start - 1; i < end; i++) {
-                                if (workflow.checklist[i]) {
+                            // 1-based index를 0-based로 변환하고 end 포함
+                            for (let i = start - 1; i <= end - 1; i++) {
+                                if (i >= 0 && i < workflow.checklist.length && workflow.checklist[i]) {
                                     if (workflow.checklist[i].skipReason && workflow.checklist[i].skipReason.startsWith(label)) {
                                         delete workflow.checklist[i].skipped;
                                         delete workflow.checklist[i].skipReason;
@@ -1984,4 +1994,3 @@ ${deadlineInfo ? `- 마감일 고려: ${deadlineInfo.includes('오늘 마감') ?
     </script>
 </body>
 </html>
-
