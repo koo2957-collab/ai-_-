@@ -856,7 +856,8 @@
                 } else {
                     if (body) {
                         body.innerHTML = workflow.checklist.map((item, index) => {
-                            const isCompleted = this.normalizeCompleted(item);
+                            // completed 상태를 boolean으로 확실히 변환
+                            const isCompleted = Boolean(this.normalizeCompleted(item));
                             const isSkipped = item.skipped === true;
                             const itemNumber = index + 1;
                             
@@ -1558,8 +1559,21 @@ ${deadlineInfo ? `- 마감일 고려: ${deadlineInfo.includes('오늘 마감') ?
                 if (!workflow || !workflow.checklist) return;
 
                 const currentItem = workflow.checklist[index];
+                if (!currentItem) return;
                 
-                // 1. 현재 항목 완료 처리
+                // 이미 분기 처리가 되어 있는지 확인
+                if (currentItem.branchActionTaken) {
+                    this.showToast('error', '⚠️', '이미 분기 처리가 완료된 항목입니다. 실행취소 후 다시 시도하세요.');
+                    return;
+                }
+                
+                // 건너뛴 항목은 분기 처리 불가
+                if (currentItem.skipped === true) {
+                    this.showToast('error', '🚫', '건너뛴 항목은 분기 처리를 할 수 없습니다.');
+                    return;
+                }
+                
+                // 1. 현재 항목 완료 처리 (boolean 타입 보장)
                 currentItem.completed = true;
                 currentItem.completedAt = new Date().toLocaleString('ko-KR');
                 currentItem.result = currentItem.result || {};
@@ -1656,12 +1670,23 @@ ${deadlineInfo ? `- 마감일 고려: ${deadlineInfo.includes('오늘 마감') ?
                 }
 
                 // 2. 현재 항목 상태 복구
-                currentItem.completed = false;
-                currentItem.completedAt = null;
+                // result 객체에서 [자동 입력] 텍스트만 제거 (사용자가 입력한 내용은 보존)
                 if (currentItem.result && currentItem.result.text && currentItem.result.text.includes('[자동 입력]')) {
                     currentItem.result.text = '';
                 }
                 delete currentItem.branchActionTaken;
+                
+                // 3. 현재 항목이 건너뛰어져 있는지 확인하고 복구
+                // (다른 분기에 의해 건너뛰어진 경우가 아니라면)
+                if (currentItem.skipped && currentItem.skipReason && currentItem.skipReason.startsWith(label)) {
+                    delete currentItem.skipped;
+                    delete currentItem.skipReason;
+                }
+                
+                // 4. completed를 확실히 false로 설정 (boolean 타입 보장)
+                // 이 부분을 마지막에 실행하여 분기 버튼이 다시 나타나도록 함
+                currentItem.completed = false;
+                currentItem.completedAt = null;
 
                 this.saveWorkflow(workflow);
                 this.showToast('success', '↩️', '분기 처리가 취소되었습니다.');
