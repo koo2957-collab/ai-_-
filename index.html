@@ -16,7 +16,7 @@
             document.head.appendChild(link);
         }
     </script>
-    <title>📱 AI 업무 내비게이터</title>
+    <title>ai 업무 내비</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         :root {
@@ -648,11 +648,10 @@
             display: flex;
             gap: 10px;
             align-items: flex-end;
-            transition: box-shadow 0.16s ease-out, transform 0.16s ease-out;
+            transition: box-shadow 0.16s ease-out;
         }
         .ai-chat-input.focused {
             box-shadow: 0 -4px 18px rgba(15, 23, 42, 0.16);
-            transform: translateY(-2px);
         }
         .ai-chat-input textarea {
             flex: 1;
@@ -676,7 +675,7 @@
     <!-- 헤더 -->
     <div class="header">
         <div class="header-content">
-            <div class="header-title">📱 AI 업무 내비게이터</div>
+            <div class="header-title">ai 업무 내비</div>
             <div class="header-actions">
                 <button class="btn btn-secondary btn-small" onclick="app.openModal('settingsModal')">⚙️ API</button>
                 <button class="btn btn-primary btn-small" onclick="app.importProjectPackage()">📦 가져오기</button>
@@ -1321,19 +1320,11 @@
                 // 전송 버튼
                 sendBtn.addEventListener('click', () => this.sendAiPartnerMessage());
 
-                // 입력 포커스 시 입력 영역 살짝 띄우기 (더 부드러운 느낌)
+                // 입력 포커스 시 하단 입력 영역에만 살짝 그림자 (레이아웃 변화 없음)
                 const inputContainer = input.closest('.ai-chat-input');
                 if (inputContainer) {
                     input.addEventListener('focus', () => {
                         inputContainer.classList.add('focused');
-                        // 모바일에서 키보드가 올라올 때 입력창이 가려지지 않도록 살짝 스크롤
-                        setTimeout(() => {
-                            try {
-                                input.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-                            } catch (e) {
-                                // scrollIntoView 미지원 환경은 무시
-                            }
-                        }, 80);
                     });
                     input.addEventListener('blur', () => {
                         inputContainer.classList.remove('focused');
