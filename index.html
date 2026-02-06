@@ -16,7 +16,7 @@
             document.head.appendChild(link);
         }
     </script>
-    <title>📱 모바일 업무 네비게이터</title>
+    <title>📱 AI 업무 내비게이터 모바일</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         :root {
@@ -377,6 +377,12 @@
             font-size: 1.2rem;
             font-weight: 800;
             touch-action: manipulation;
+            transition: opacity 0.18s ease, transform 0.18s ease;
+        }
+        .ai-fab.hidden {
+            pointer-events: none;
+            opacity: 0;
+            transform: translateY(12px);
         }
         .ai-fab:active { transform: scale(0.96); }
 
@@ -478,6 +484,12 @@
             background: var(--bg-light);
             min-height: 0;
         }
+        /* 처음 안내 메시지만 있을 때는 가운데 정렬 (Claude 스타일) */
+        .ai-chat-box.ai-empty-state {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
         .ai-msg {
             display: flex;
             margin-bottom: 10px;
@@ -512,6 +524,48 @@
             margin: 0 auto;
             max-width: 92%;
             font-size: 0.85rem;
+        }
+
+        /* 체크리스트 AI 길잡이 모달용 마크다운 스타일 */
+        .ai-guide-content {
+            font-size: 0.92rem;
+            line-height: 1.6;
+        }
+        .ai-guide-content .md h1,
+        .ai-guide-content .md h2,
+        .ai-guide-content .md h3 {
+            margin: 8px 0 6px 0;
+            line-height: 1.25;
+            letter-spacing: -0.01em;
+        }
+        .ai-guide-content .md h1 { font-size: 1.05rem; }
+        .ai-guide-content .md h2 { font-size: 1.0rem; }
+        .ai-guide-content .md h3 { font-size: 0.97rem; }
+        .ai-guide-content .md p {
+            margin: 6px 0;
+        }
+        .ai-guide-content .md ul,
+        .ai-guide-content .md ol {
+            margin: 6px 0 6px 18px;
+            padding: 0;
+        }
+        .ai-guide-content .md li {
+            margin: 4px 0;
+        }
+        .ai-guide-content .md blockquote {
+            margin: 8px 0;
+            padding: 8px 10px;
+            border-left: 4px solid rgba(74, 158, 255, 0.7);
+            background: rgba(74, 158, 255, 0.06);
+            border-radius: 10px;
+        }
+        .ai-guide-content .md code.md-inline-code {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+            font-size: 0.88em;
+            padding: 2px 6px;
+            border-radius: 8px;
+            background: rgba(17, 24, 39, 0.06);
+            border: 1px solid rgba(17, 24, 39, 0.08);
         }
 
         /* Markdown rendering inside AI bubbles */
@@ -1314,6 +1368,12 @@
 
                 const input = document.getElementById('aiChatInput');
                 if (input) setTimeout(() => input.focus(), 50);
+
+                // FAB가 모달과 겹치지 않도록 숨기기
+                const fab = document.getElementById('aiFab');
+                if (fab) {
+                    fab.classList.add('hidden');
+                }
             }
 
             closeAiPartner() {
@@ -1326,6 +1386,12 @@
                 setTimeout(() => {
                     modal.classList.remove('closing');
                     this.closeModal('aiPartnerModal');
+
+                    // 모달이 완전히 닫힌 후 FAB 다시 표시
+                    const fab = document.getElementById('aiFab');
+                    if (fab) {
+                        fab.classList.remove('hidden');
+                    }
                 }, 190);
             }
 
@@ -1356,6 +1422,16 @@
             renderAiPartnerMessages() {
                 const box = document.getElementById('aiChatBox');
                 if (!box) return;
+
+                // Claude 스타일: 처음 안내(system) 메시지만 있을 때는 가운데 정렬
+                const onlySystem =
+                    this.aiPartnerMessages.length === 1 &&
+                    (this.aiPartnerMessages[0].role || 'assistant') === 'system';
+                if (onlySystem) {
+                    box.classList.add('ai-empty-state');
+                } else {
+                    box.classList.remove('ai-empty-state');
+                }
 
                 box.innerHTML = this.aiPartnerMessages.map(m => {
                     const role = m.role || 'assistant';
@@ -1827,7 +1903,8 @@
                     const helpText = await this.callAI(prompt);
                     const content = document.getElementById('aiGuideContent');
                     if (content) {
-                        content.textContent = helpText;
+                        const html = this.renderMarkdownToHtml(helpText);
+                        content.innerHTML = `<div class="md">${html}</div>`;
                     }
                     this.openModal('aiGuideModal');
                     this.showToast('success', '✅', 'AI 길잡이가 생성되었습니다');
