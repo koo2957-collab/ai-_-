@@ -199,12 +199,15 @@
             z-index: 1000;
             overflow-y: auto;
             -webkit-overflow-scrolling: touch;
+            opacity: 0;
+            transition: opacity 0.18s ease-out;
         }
         .modal.show {
             display: flex;
             align-items: flex-start;
             justify-content: center;
             padding: 20px;
+            opacity: 1;
         }
         .modal-content {
             background: var(--white);
@@ -215,6 +218,13 @@
             overflow-y: auto;
             box-shadow: 0 10px 40px rgba(0,0,0,0.3);
             margin: auto;
+            transform: translateY(10px) scale(0.98);
+            opacity: 0;
+            transition: transform 0.18s ease-out, opacity 0.18s ease-out;
+        }
+        .modal.show .modal-content {
+            transform: translateY(0) scale(1);
+            opacity: 1;
         }
         .modal-header {
             padding: 20px;
@@ -638,6 +648,11 @@
             display: flex;
             gap: 10px;
             align-items: flex-end;
+            transition: box-shadow 0.16s ease-out, transform 0.16s ease-out;
+        }
+        .ai-chat-input.focused {
+            box-shadow: 0 -4px 18px rgba(15, 23, 42, 0.16);
+            transform: translateY(-2px);
         }
         .ai-chat-input textarea {
             flex: 1;
@@ -661,7 +676,7 @@
     <!-- 헤더 -->
     <div class="header">
         <div class="header-content">
-            <div class="header-title">📱 업무 네비게이터</div>
+            <div class="header-title">📱 AI 업무 내비게이터 모바일</div>
             <div class="header-actions">
                 <button class="btn btn-secondary btn-small" onclick="app.openModal('settingsModal')">⚙️ API</button>
                 <button class="btn btn-primary btn-small" onclick="app.importProjectPackage()">📦 가져오기</button>
@@ -1305,6 +1320,25 @@
 
                 // 전송 버튼
                 sendBtn.addEventListener('click', () => this.sendAiPartnerMessage());
+
+                // 입력 포커스 시 입력 영역 살짝 띄우기 (더 부드러운 느낌)
+                const inputContainer = input.closest('.ai-chat-input');
+                if (inputContainer) {
+                    input.addEventListener('focus', () => {
+                        inputContainer.classList.add('focused');
+                        // 모바일에서 키보드가 올라올 때 입력창이 가려지지 않도록 살짝 스크롤
+                        setTimeout(() => {
+                            try {
+                                input.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                            } catch (e) {
+                                // scrollIntoView 미지원 환경은 무시
+                            }
+                        }, 80);
+                    });
+                    input.addEventListener('blur', () => {
+                        inputContainer.classList.remove('focused');
+                    });
+                }
 
                 // 엔터 전송 (모바일에서는 Shift+Enter 줄바꿈)
                 input.addEventListener('keydown', (e) => {
