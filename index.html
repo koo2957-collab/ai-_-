@@ -356,6 +356,251 @@
             color: var(--text-dark);
             font-size: 0.95rem;
         }
+
+        /* ===== AI 업무파트너: FAB + Bottom Sheet ===== */
+        .ai-fab {
+            position: fixed;
+            right: 16px;
+            bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+            width: 56px;
+            height: 56px;
+            border-radius: 18px;
+            border: none;
+            background: linear-gradient(135deg, var(--accent), #2563eb);
+            color: var(--white);
+            box-shadow: 0 10px 25px rgba(37, 99, 235, 0.35);
+            z-index: 1500;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            font-weight: 800;
+            touch-action: manipulation;
+        }
+        .ai-fab:active { transform: scale(0.96); }
+
+        .bottomsheet-modal.show {
+            align-items: flex-end;
+            justify-content: center;
+            padding: 0;
+        }
+        .bottomsheet-modal .modal-content {
+            width: 100%;
+            max-width: 500px;
+            max-height: 92vh;
+            height: 82vh;
+            border-radius: 18px 18px 0 0;
+            margin: 0;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            transform: translateY(12px);
+            animation: bottomSheetUp 0.22s ease forwards;
+        }
+        .bottomsheet-modal.closing .modal-content {
+            animation: bottomSheetDown 0.18s ease forwards;
+        }
+        @keyframes bottomSheetUp {
+            from { transform: translateY(100%); }
+            to { transform: translateY(0); }
+        }
+        @keyframes bottomSheetDown {
+            from { transform: translateY(0); }
+            to { transform: translateY(100%); }
+        }
+
+        .ai-sheet-header {
+            padding: 14px 16px 10px 16px;
+            border-bottom: 1px solid var(--border-light);
+            background: var(--white);
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        .ai-sheet-handle {
+            width: 44px;
+            height: 5px;
+            border-radius: 999px;
+            background: #d1d5db;
+            margin: 0 auto 10px auto;
+            touch-action: none;
+        }
+        .ai-sheet-title-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+        }
+        .ai-sheet-title {
+            font-size: 1.05rem;
+            font-weight: 800;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .ai-context-chip {
+            margin-top: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            padding: 10px 12px;
+            background: #f0f9ff;
+            border: 1px solid rgba(59, 130, 246, 0.15);
+            border-radius: 12px;
+            font-size: 0.85rem;
+            color: #0369a1;
+        }
+        .ai-context-chip label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            font-weight: 700;
+        }
+        .ai-context-chip input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+        }
+
+        .ai-chat {
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            min-height: 0; /* allow chat box to shrink and scroll */
+        }
+        .ai-chat-box {
+            flex: 1;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            padding: 14px 14px 10px 14px;
+            background: var(--bg-light);
+            min-height: 0;
+        }
+        .ai-msg {
+            display: flex;
+            margin-bottom: 10px;
+        }
+        .ai-msg .bubble {
+            max-width: 86%;
+            padding: 10px 12px;
+            border-radius: 14px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+            white-space: pre-wrap;
+            line-height: 1.55;
+            font-size: 0.92rem;
+        }
+        .ai-msg.user { justify-content: flex-end; }
+        .ai-msg.user .bubble {
+            background: linear-gradient(135deg, var(--accent), #2563eb);
+            color: white;
+            border-bottom-right-radius: 6px;
+        }
+        .ai-msg.assistant { justify-content: flex-start; }
+        .ai-msg.assistant .bubble {
+            background: white;
+            color: var(--text-dark);
+            border: 1px solid var(--border-light);
+            border-bottom-left-radius: 6px;
+        }
+        .ai-msg.system .bubble {
+            background: #111827;
+            color: white;
+            opacity: 0.92;
+            border-radius: 12px;
+            margin: 0 auto;
+            max-width: 92%;
+            font-size: 0.85rem;
+        }
+
+        /* Markdown rendering inside AI bubbles */
+        .bubble .md h1, .bubble .md h2, .bubble .md h3 {
+            margin: 8px 0 6px 0;
+            line-height: 1.25;
+            letter-spacing: -0.01em;
+        }
+        .bubble .md h1 { font-size: 1.05rem; }
+        .bubble .md h2 { font-size: 1.0rem; }
+        .bubble .md h3 { font-size: 0.97rem; }
+        .bubble .md p {
+            margin: 6px 0;
+            line-height: 1.6;
+        }
+        .bubble .md ul, .bubble .md ol {
+            margin: 6px 0 6px 18px;
+            padding: 0;
+        }
+        .bubble .md li { margin: 4px 0; }
+        .bubble .md blockquote {
+            margin: 8px 0;
+            padding: 8px 10px;
+            border-left: 4px solid rgba(74, 158, 255, 0.7);
+            background: rgba(74, 158, 255, 0.06);
+            border-radius: 10px;
+            color: inherit;
+        }
+        .bubble .md a {
+            color: var(--accent);
+            text-decoration: underline;
+            word-break: break-word;
+        }
+        .bubble .md code.md-inline-code {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+            font-size: 0.88em;
+            padding: 2px 6px;
+            border-radius: 8px;
+            background: rgba(17, 24, 39, 0.06);
+            border: 1px solid rgba(17, 24, 39, 0.08);
+        }
+        .ai-msg.user .bubble .md code.md-inline-code {
+            background: rgba(255, 255, 255, 0.14);
+            border-color: rgba(255, 255, 255, 0.22);
+        }
+        .bubble .md pre.md-code {
+            margin: 10px 0;
+            padding: 10px 12px;
+            border-radius: 12px;
+            background: #0b1220;
+            color: #e5e7eb;
+            overflow-x: auto;
+            border: 1px solid rgba(255,255,255,0.08);
+        }
+        .bubble .md pre.md-code code {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+            font-size: 0.86em;
+            line-height: 1.55;
+            white-space: pre;
+        }
+        .ai-msg.user .bubble .md a { color: #dbeafe; }
+        .ai-msg.user .bubble .md blockquote {
+            border-left-color: rgba(255,255,255,0.65);
+            background: rgba(255,255,255,0.12);
+        }
+        .ai-chat-input {
+            padding: 12px 12px calc(12px + env(safe-area-inset-bottom, 0px)) 12px;
+            background: white;
+            border-top: 1px solid var(--border-light);
+            display: flex;
+            gap: 10px;
+            align-items: flex-end;
+        }
+        .ai-chat-input textarea {
+            flex: 1;
+            min-height: 42px;
+            max-height: 120px;
+            resize: none;
+            padding: 10px 12px;
+            border: 1px solid var(--border-light);
+            border-radius: 12px;
+            font-family: inherit;
+            font-size: 0.95rem;
+            outline: none;
+        }
+        .ai-chat-input textarea:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(74, 158, 255, 0.12);
+        }
     </style>
 </head>
 <body>
@@ -536,6 +781,39 @@
         </div>
     </div>
 
+    <!-- AI 업무파트너 FAB -->
+    <button class="ai-fab" id="aiFab" onclick="app.openAiPartner()" aria-label="AI 업무파트너 열기" title="AI 업무파트너">
+        🤖
+    </button>
+
+    <!-- AI 업무파트너 Bottom Sheet -->
+    <div class="modal bottomsheet-modal" id="aiPartnerModal">
+        <div class="modal-content" id="aiPartnerSheet">
+            <div class="ai-sheet-header" id="aiPartnerHeader">
+                <div class="ai-sheet-handle" id="aiPartnerHandle"></div>
+                <div class="ai-sheet-title-row">
+                    <div class="ai-sheet-title">🤖 AI 업무파트너</div>
+                    <button class="close-btn" onclick="app.closeAiPartner()" aria-label="닫기">×</button>
+                </div>
+                <div class="ai-context-chip">
+                    <label>
+                        <input type="checkbox" id="aiUseWorkflowContext" />
+                        <span>📋 현재 업무 참조</span>
+                    </label>
+                    <div id="aiContextTitle" style="flex: 1; text-align: right; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"></div>
+                </div>
+            </div>
+
+            <div class="ai-chat">
+                <div class="ai-chat-box" id="aiChatBox"></div>
+                <div class="ai-chat-input">
+                    <textarea id="aiChatInput" placeholder="AI에게 질문하기..." rows="2"></textarea>
+                    <button class="btn btn-success" id="aiChatSendBtn" style="padding: 10px 14px;">📤</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Toast 알림 -->
     <div class="toast" id="toast"></div>
 
@@ -632,6 +910,20 @@
                 });
             }
 
+            async getProjectFilesByProjectKey(projectKey) {
+                if (!this.db) throw new Error('IndexedDB가 초기화되지 않았습니다');
+                if (!projectKey) return [];
+
+                return new Promise((resolve, reject) => {
+                    const transaction = this.db.transaction(['projectFiles'], 'readonly');
+                    const store = transaction.objectStore('projectFiles');
+                    const index = store.index('projectKey');
+                    const request = index.getAll(projectKey);
+                    request.onsuccess = () => resolve(request.result || []);
+                    request.onerror = () => reject(request.error);
+                });
+            }
+
             async saveChecklistDetails(key, details) {
                 if (!this.db) throw new Error('IndexedDB가 초기화되지 않았습니다');
                 
@@ -692,6 +984,10 @@
                 this.currentWorkflowId = null;
                 this.currentItemIndex = null;
                 this.lastImportedWorkflowIds = []; // 최근 가져온 업무 ID 목록
+
+                // AI 업무파트너 (Bottom Sheet Chat)
+                this.aiPartnerMessages = [];
+                this.aiPartnerBusy = false;
                 this.init();
             }
 
@@ -701,6 +997,7 @@
                     await this.loadData();
                     await this.loadApiKeys();
                     this.displayWorkflows();
+                    this.initAiPartnerUI();
                 } catch (error) {
                     console.error('초기화 오류:', error);
                     this.showToast('error', '❌', '초기화 실패: ' + error.message);
@@ -853,6 +1150,10 @@
                 if (!workflow) return;
 
                 this.currentWorkflowId = workflowId;
+
+                // 업무를 선택하면 AI 업무파트너의 "현재 업무 참조"를 자동 활성화
+                this.enableAiPartnerWorkflowContext();
+                this.updateAiPartnerContextUI();
                 const title = document.getElementById('checklistModalTitle');
                 const body = document.getElementById('checklistModalBody');
                 
@@ -907,6 +1208,568 @@
                 }
                 
                 this.openModal('checklistModal');
+            }
+
+            enableAiPartnerWorkflowContext() {
+                const wf = this.getCurrentWorkflow();
+                const useContext = document.getElementById('aiUseWorkflowContext');
+                if (!useContext) return;
+
+                if (!wf) {
+                    useContext.checked = false;
+                    return;
+                }
+
+                // 요청사항: 업무 선택 시 자동으로 체크(활성화)
+                useContext.checked = true;
+            }
+
+            /* ===== AI 업무파트너: UI/동작 ===== */
+            initAiPartnerUI() {
+                const modal = document.getElementById('aiPartnerModal');
+                const sendBtn = document.getElementById('aiChatSendBtn');
+                const input = document.getElementById('aiChatInput');
+                const useContext = document.getElementById('aiUseWorkflowContext');
+                const handle = document.getElementById('aiPartnerHandle');
+                const sheet = document.getElementById('aiPartnerSheet');
+
+                if (!modal || !sendBtn || !input || !useContext || !handle || !sheet) return;
+
+                // 기본 메시지
+                if (this.aiPartnerMessages.length === 0) {
+                    this.aiPartnerMessages.push({
+                        role: 'system',
+                        text: '안녕하세요! AI 업무파트너입니다.\n업무 진행 중 막히는 부분을 질문하거나, 다음 행동을 물어보세요.'
+                    });
+                    this.renderAiPartnerMessages();
+                }
+
+                // 오버레이 클릭 닫기
+                modal.addEventListener('click', (e) => {
+                    if (e.target === modal) this.closeAiPartner();
+                });
+
+                // 전송 버튼
+                sendBtn.addEventListener('click', () => this.sendAiPartnerMessage());
+
+                // 엔터 전송 (모바일에서는 Shift+Enter 줄바꿈)
+                input.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        this.sendAiPartnerMessage();
+                    }
+                });
+
+                // 컨텍스트 토글 변경 시 안내
+                useContext.addEventListener('change', () => {
+                    if (useContext.checked) {
+                        const wf = this.getCurrentWorkflow();
+                        if (!wf) {
+                            useContext.checked = false;
+                            this.showToast('error', '⚠️', '참조할 업무가 없습니다. 먼저 체크리스트를 여세요.');
+                        }
+                    }
+                });
+
+                // 드래그로 닫기
+                let dragging = false;
+                let startY = 0;
+                let currentY = 0;
+                const onPointerDown = (e) => {
+                    dragging = true;
+                    startY = e.clientY || (e.touches && e.touches[0] && e.touches[0].clientY) || 0;
+                    currentY = 0;
+                    sheet.style.transition = 'none';
+                };
+                const onPointerMove = (e) => {
+                    if (!dragging) return;
+                    const y = e.clientY || (e.touches && e.touches[0] && e.touches[0].clientY) || 0;
+                    currentY = Math.max(0, y - startY);
+                    sheet.style.transform = `translateY(${currentY}px)`;
+                };
+                const onPointerUp = () => {
+                    if (!dragging) return;
+                    dragging = false;
+                    sheet.style.transition = 'transform 0.18s ease';
+                    if (currentY > 120) {
+                        sheet.style.transform = '';
+                        this.closeAiPartner();
+                    } else {
+                        sheet.style.transform = '';
+                    }
+                };
+
+                handle.addEventListener('pointerdown', onPointerDown);
+                window.addEventListener('pointermove', onPointerMove);
+                window.addEventListener('pointerup', onPointerUp);
+
+                // 초기 컨텍스트 UI
+                this.updateAiPartnerContextUI();
+            }
+
+            openAiPartner() {
+                this.updateAiPartnerContextUI();
+                this.openModal('aiPartnerModal');
+                this.scrollAiChatToBottom();
+
+                const input = document.getElementById('aiChatInput');
+                if (input) setTimeout(() => input.focus(), 50);
+            }
+
+            closeAiPartner() {
+                const modal = document.getElementById('aiPartnerModal');
+                if (!modal) {
+                    this.closeModal('aiPartnerModal');
+                    return;
+                }
+                modal.classList.add('closing');
+                setTimeout(() => {
+                    modal.classList.remove('closing');
+                    this.closeModal('aiPartnerModal');
+                }, 190);
+            }
+
+            getCurrentWorkflow() {
+                if (!this.currentWorkflowId) return null;
+                return this.allData.workflows.find(w => w.id === this.currentWorkflowId) || null;
+            }
+
+            updateAiPartnerContextUI() {
+                const useContext = document.getElementById('aiUseWorkflowContext');
+                const titleEl = document.getElementById('aiContextTitle');
+                if (!useContext || !titleEl) return;
+
+                const wf = this.getCurrentWorkflow();
+                if (!wf) {
+                    useContext.checked = false;
+                    useContext.disabled = true;
+                    titleEl.textContent = '업무 선택 없음';
+                    titleEl.style.opacity = '0.7';
+                    return;
+                }
+
+                useContext.disabled = false;
+                titleEl.textContent = wf.title ? String(wf.title) : '현재 업무';
+                titleEl.style.opacity = '1';
+            }
+
+            renderAiPartnerMessages() {
+                const box = document.getElementById('aiChatBox');
+                if (!box) return;
+
+                box.innerHTML = this.aiPartnerMessages.map(m => {
+                    const role = m.role || 'assistant';
+                    const text = (m.text || '').toString();
+                    const html = role === 'user'
+                        ? this.escapeHtml(text).replace(/\n/g, '<br>')
+                        : this.renderMarkdownToHtml(text);
+                    return `<div class="ai-msg ${role}"><div class="bubble"><div class="md">${html}</div></div></div>`;
+                }).join('');
+
+                this.scrollAiChatToBottom();
+            }
+
+            // 안전한(HTML escape 기반) 마크다운 렌더러: 헤딩/리스트/굵게/인라인코드/코드블록/링크/인용
+            renderMarkdownToHtml(markdownText) {
+                const raw = (markdownText || '').toString();
+
+                // 1) HTML escape
+                let escaped = this.escapeHtml(raw);
+
+                // 2) 코드블록 ``` ... ``` (가장 먼저 처리)
+                // escaped 상태에서도 ``` 는 그대로이므로 정규식 적용 가능
+                escaped = escaped.replace(/```([\s\S]*?)```/g, (match, code) => {
+                    const trimmed = (code || '').replace(/^\n+|\n+$/g, '');
+                    return `\n\n<pre class="md-code"><code>${trimmed}</code></pre>\n\n`;
+                });
+
+                // 3) 인라인 코드 `...`
+                escaped = escaped.replace(/`([^`\n]+)`/g, (m, code) => {
+                    return `<code class="md-inline-code">${code}</code>`;
+                });
+
+                // 4) 링크 [text](url) - http(s)만 허용
+                escaped = escaped.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (m, text, url) => {
+                    const u = (url || '').trim();
+                    const safeUrl = (u.startsWith('http://') || u.startsWith('https://')) ? u : '';
+                    if (!safeUrl) return `${text} (${url})`;
+                    return `<a href="${safeUrl}" target="_blank" rel="noopener noreferrer">${text}</a>`;
+                });
+
+                // 5) 굵게 **text**
+                escaped = escaped.replace(/\*\*([^*]+)\*\*/g, (m, t) => `<strong>${t}</strong>`);
+
+                // 6) 라인 단위 파싱(헤딩/리스트/인용/문단)
+                const lines = escaped.split(/\r?\n/);
+                const out = [];
+                let inUl = false;
+                let inOl = false;
+                let inQuote = false;
+
+                const closeLists = () => {
+                    if (inUl) { out.push('</ul>'); inUl = false; }
+                    if (inOl) { out.push('</ol>'); inOl = false; }
+                };
+                const closeQuote = () => {
+                    if (inQuote) { out.push('</blockquote>'); inQuote = false; }
+                };
+
+                for (let i = 0; i < lines.length; i++) {
+                    const line = lines[i];
+                    const trimmed = line.trim();
+
+                    // 이미 HTML 블록(코드블록 pre)이 들어간 라인: 그대로 출력하되 문맥 정리
+                    if (trimmed.startsWith('<pre class="md-code">')) {
+                        closeLists();
+                        closeQuote();
+                        out.push(line);
+                        continue;
+                    }
+
+                    // 빈 줄 => 블록 종료
+                    if (!trimmed) {
+                        closeLists();
+                        closeQuote();
+                        continue;
+                    }
+
+                    // 헤딩
+                    const h3 = trimmed.match(/^###\s+(.*)$/);
+                    const h2 = trimmed.match(/^##\s+(.*)$/);
+                    const h1 = trimmed.match(/^#\s+(.*)$/);
+                    if (h3 || h2 || h1) {
+                        closeLists();
+                        closeQuote();
+                        if (h3) out.push(`<h3>${h3[1]}</h3>`);
+                        else if (h2) out.push(`<h2>${h2[1]}</h2>`);
+                        else out.push(`<h1>${h1[1]}</h1>`);
+                        continue;
+                    }
+
+                    // 인용
+                    const quote = trimmed.match(/^>\s?(.*)$/);
+                    if (quote) {
+                        closeLists();
+                        if (!inQuote) {
+                            out.push('<blockquote>');
+                            inQuote = true;
+                        }
+                        out.push(`<p>${quote[1]}</p>`);
+                        continue;
+                    } else {
+                        closeQuote();
+                    }
+
+                    // UL: - item / * item
+                    const ul = trimmed.match(/^[-*]\s+(.*)$/);
+                    if (ul) {
+                        if (inOl) { out.push('</ol>'); inOl = false; }
+                        if (!inUl) { out.push('<ul>'); inUl = true; }
+                        out.push(`<li>${ul[1]}</li>`);
+                        continue;
+                    }
+
+                    // OL: 1. item
+                    const ol = trimmed.match(/^\d+\.\s+(.*)$/);
+                    if (ol) {
+                        if (inUl) { out.push('</ul>'); inUl = false; }
+                        if (!inOl) { out.push('<ol>'); inOl = true; }
+                        out.push(`<li>${ol[1]}</li>`);
+                        continue;
+                    }
+
+                    // 일반 문단
+                    closeLists();
+                    out.push(`<p>${trimmed}</p>`);
+                }
+
+                closeLists();
+                closeQuote();
+
+                return out.join('\n');
+            }
+
+            scrollAiChatToBottom() {
+                const box = document.getElementById('aiChatBox');
+                if (!box) return;
+                box.scrollTop = box.scrollHeight;
+            }
+
+            async sendAiPartnerMessage() {
+                if (this.aiPartnerBusy) return;
+
+                const input = document.getElementById('aiChatInput');
+                const useContext = document.getElementById('aiUseWorkflowContext');
+                const sendBtn = document.getElementById('aiChatSendBtn');
+
+                if (!input || !useContext || !sendBtn) return;
+
+                const text = (input.value || '').trim();
+                if (!text) return;
+
+                // API 키 체크 (showAIGuide와 동일한 UX)
+                const provider = this.allData.provider;
+                const apiKey = provider === 'gemini' ? this.allData.geminiApiKey
+                    : provider === 'chatgpt' ? this.allData.chatgptApiKey
+                    : provider === 'claude' ? this.allData.claudeApiKey
+                    : '';
+
+                if (!apiKey) {
+                    this.showToast('error', '⚠️', 'API 키를 먼저 설정하세요');
+                    this.openModal('settingsModal');
+                    return;
+                }
+
+                input.value = '';
+
+                this.aiPartnerMessages.push({ role: 'user', text });
+                this.aiPartnerMessages.push({ role: 'assistant', text: '생각 중…' });
+                this.renderAiPartnerMessages();
+
+                this.aiPartnerBusy = true;
+                sendBtn.disabled = true;
+
+                try {
+                    const prompt = await this.buildAiPartnerPrompt(text, useContext.checked === true);
+                    const answer = await this.callAI(prompt);
+
+                    // 마지막 assistant(placeholder) 교체
+                    const lastIdx = this.aiPartnerMessages.length - 1;
+                    if (this.aiPartnerMessages[lastIdx] && this.aiPartnerMessages[lastIdx].role === 'assistant') {
+                        this.aiPartnerMessages[lastIdx].text = answer;
+                    } else {
+                        this.aiPartnerMessages.push({ role: 'assistant', text: answer });
+                    }
+
+                    this.renderAiPartnerMessages();
+                } catch (error) {
+                    // placeholder 교체
+                    const lastIdx = this.aiPartnerMessages.length - 1;
+                    if (this.aiPartnerMessages[lastIdx] && this.aiPartnerMessages[lastIdx].role === 'assistant') {
+                        this.aiPartnerMessages[lastIdx].text = `호출 실패: ${error.message}`;
+                    } else {
+                        this.aiPartnerMessages.push({ role: 'assistant', text: `호출 실패: ${error.message}` });
+                    }
+                    this.renderAiPartnerMessages();
+                    this.showToast('error', '❌', 'AI 호출 실패: ' + error.message);
+                } finally {
+                    this.aiPartnerBusy = false;
+                    sendBtn.disabled = false;
+                }
+            }
+
+            async buildAiPartnerPrompt(userText, useWorkflowContext) {
+                const provider = this.allData.provider;
+                const model = this.allData.selectedModel && this.allData.selectedModel[provider] ? this.allData.selectedModel[provider] : '';
+
+                // API 키(문서 컨텍스트 생성에 필요할 수도 있음 - getSmartDocContext는 기본적으로 요약/추출이라 키 없어도 동작)
+                const apiKey = provider === 'gemini' ? this.allData.geminiApiKey
+                    : provider === 'chatgpt' ? this.allData.chatgptApiKey
+                    : provider === 'claude' ? this.allData.claudeApiKey
+                    : '';
+
+                const truncate = (text, maxLen) => {
+                    const s = (text ?? '').toString();
+                    if (!s) return '';
+                    return s.length > maxLen ? (s.substring(0, maxLen) + '…') : s;
+                };
+
+                // 데스크탑 방식에 맞춘 우선순위: 공문/법령/지침(근거) > 업무/체크리스트(보조) > 서식(제목만)
+                const LAW_DOC_KEYWORDS = ['법령', '조례', '규정', '규칙', '고시', '훈령', '예규', '지침', '매뉴얼', '공문', '시행', '통보', '안내', '공고', '요령', '지시'];
+                const FORM_KEYWORDS = ['서식', '양식', '템플릿', 'template', 'form'];
+
+                const isLikelyFormFile = (name = '', type = '') => {
+                    const n = (name || '').toString().toLowerCase();
+                    const t = (type || '').toString().toLowerCase();
+                    if (FORM_KEYWORDS.some(k => n.includes(k))) return true;
+                    if (n.endsWith('.hwp') || n.endsWith('.doc') || n.endsWith('.docx') || n.endsWith('.xls') || n.endsWith('.xlsx') || n.endsWith('.ppt') || n.endsWith('.pptx')) return true;
+                    if (t.startsWith('image/')) return true; // 스캔/이미지는 모바일에서 텍스트 발췌 불가
+                    return false;
+                };
+
+                const isLikelyLawOrOfficial = (name = '', hintText = '') => {
+                    const n = (name || '').toString();
+                    const s = (hintText || '').toString();
+                    const hay = (n + ' ' + s).toLowerCase();
+                    if (LAW_DOC_KEYWORDS.some(k => hay.includes(k.toLowerCase()))) return true;
+                    if (s.includes('제') && /(\d+)\s*조/.test(s)) return true;
+                    return false;
+                };
+
+                let context = '';
+
+                if (useWorkflowContext) {
+                    const wf = this.getCurrentWorkflow();
+                    if (wf) {
+                        // 0) 근거 문서(PDF) 우선: 공문/법령/지침 성격 문서를 먼저 발췌
+                        try {
+                            const docs = await this.getProjectDocs(wf.id);
+                            if (docs && docs.length > 0) {
+                                const keywords = this.extractKeywords(wf.checklist || []);
+                                const scored = docs.map(d => {
+                                    const filename = d?.filename || '';
+                                    const hint = (d?.summary || '') + ' ' + (d?.content || '').substring(0, 800);
+                                    let bonus = 0;
+                                    if (isLikelyLawOrOfficial(filename, hint)) bonus += 50;
+                                    if (/(\d+)\s*조/.test(d?.content || '') || /(\d+)\s*조/.test(d?.summary || '')) bonus += 30;
+                                    const base = this.calculateRelevance(d, keywords);
+                                    return { doc: d, score: base + bonus };
+                                }).sort((a, b) => b.score - a.score);
+
+                                const picked = scored.slice(0, 2).map(x => x.doc);
+                                if (picked.length > 0) {
+                                    context += `[근거 문서 발췌 (공문/법령/지침 우선)]\n`;
+                                    for (const doc of picked) {
+                                        context += `📄 ${doc.filename || '문서'}\n`;
+                                        const extracted = await this.getSmartDocContext(doc, userText, wf.id, apiKey, provider, model);
+                                        context += `${truncate(extracted, 2400)}\n\n`;
+                                    }
+                                    context += `--- 근거 문서 끝 ---\n\n`;
+                                }
+                            }
+                        } catch (e) {
+                            // 문서가 없거나 로드 실패면 무시
+                        }
+
+                        // 1) 첨부파일(projectFiles): 서식은 제목만, 법령/공문/지침 텍스트만 발췌
+                        try {
+                            const projectKey = `project-${wf.id}`;
+                            const files = await this.dbManager.getProjectFilesByProjectKey(projectKey);
+                            if (files && files.length > 0) {
+                                // 최근순 정렬(업로드일시 기준)
+                                const sorted = files.slice().sort((a, b) => {
+                                    const ta = a?.uploadDate ? new Date(a.uploadDate).getTime() : 0;
+                                    const tb = b?.uploadDate ? new Date(b.uploadDate).getTime() : 0;
+                                    return tb - ta;
+                                });
+
+                                const forms = [];
+                                const refs = [];
+                                for (const f of sorted) {
+                                    const name = f?.fileName || '';
+                                    const type = f?.fileType || '';
+                                    if (isLikelyFormFile(name, type)) forms.push(f);
+                                    else refs.push(f);
+                                }
+
+                                const maxList = 12;
+                                if (refs.length > 0) {
+                                    context += `[첨부 자료(공문/법령/지침/참고) - 제목]\n`;
+                                    refs.slice(0, maxList).forEach((f, i) => {
+                                        const name = f?.fileName || '파일';
+                                        const type = f?.fileType || '';
+                                        const size = typeof f?.fileSize === 'number' ? `${Math.round(f.fileSize / 1024)}KB` : '';
+                                        context += `- ${i + 1}) ${name}${type ? ` (${type})` : ''}${size ? ` · ${size}` : ''}\n`;
+                                    });
+                                    if (refs.length > maxList) context += `- … (총 ${refs.length}개 중 ${maxList}개만 표시)\n`;
+                                    context += `\n`;
+                                }
+
+                                if (forms.length > 0) {
+                                    context += `[서식/양식 파일(작성용) - 제목만]\n`;
+                                    forms.slice(0, maxList).forEach((f, i) => {
+                                        const name = f?.fileName || '서식';
+                                        const type = f?.fileType || '';
+                                        context += `- ${i + 1}) ${name}${type ? ` (${type})` : ''}\n`;
+                                    });
+                                    if (forms.length > maxList) context += `- … (총 ${forms.length}개 중 ${maxList}개만 표시)\n`;
+                                    context += `\n`;
+                                }
+
+                                // 텍스트 발췌는 "법령/공문/지침"으로 보이는 텍스트 파일만
+                                const textCandidates = refs.filter(f => {
+                                    const name = (f?.fileName || '').toLowerCase();
+                                    const type = (f?.fileType || '').toLowerCase();
+                                    const isText = type.includes('text') || name.endsWith('.txt') || name.endsWith('.md') || name.endsWith('.csv');
+                                    const sizeOk = typeof f?.fileSize === 'number' ? f.fileSize <= 250_000 : true;
+                                    if (!isText || !sizeOk || !f?.blob) return false;
+                                    return isLikelyLawOrOfficial(f.fileName || '', f.fileName || '');
+                                }).slice(0, 2);
+
+                                for (const tf of textCandidates) {
+                                    try {
+                                        const text = await tf.blob.text();
+                                        context += `[첨부 텍스트 발췌: ${tf.fileName}]\n${truncate(text, 1600)}\n\n`;
+                                    } catch (e) {
+                                        // ignore
+                                    }
+                                }
+                            }
+                        } catch (e) {
+                            // 첨부파일 조회 실패는 무시
+                        }
+
+                        // 2) 보조 컨텍스트: 업무/체크리스트(서식은 제목만) 요약은 뒤에 배치
+                        context += `[참조 중인 현재업무(요약)]\n`;
+                        context += `제목: ${wf.title || ''}\n`;
+                        if (wf.content) context += `내용: ${truncate(wf.content, 900)}\n`;
+                        if (wf.deadline) {
+                            try {
+                                const deadline = new Date(wf.deadline);
+                                const today = new Date();
+                                const diffTime = deadline - today;
+                                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                                context += `마감일: ${wf.deadline} (${diffDays > 0 ? `D-${diffDays}` : diffDays === 0 ? 'D-DAY' : `D+${Math.abs(diffDays)}`})\n`;
+                            } catch (e) {
+                                context += `마감일: ${wf.deadline}\n`;
+                            }
+                        }
+                        context += `\n`;
+
+                        if (wf.checklist && Array.isArray(wf.checklist) && wf.checklist.length > 0) {
+                            const progress = this.calculateProgress(wf);
+                            const total = wf.checklist.length;
+                            const completedCount = wf.checklist.filter(it => this.normalizeCompleted(it) || it.skipped === true).length;
+                            context += `[체크리스트 - 진행률: ${progress}% (${completedCount}/${total})]\n`;
+
+                            const maxItems = 60;
+                            const itemsToShow = wf.checklist.slice(0, maxItems);
+                            itemsToShow.forEach((item, idx) => {
+                                const num = idx + 1;
+                                const isDone = this.normalizeCompleted(item);
+                                const isSkipped = item && item.skipped === true;
+                                const status = isSkipped ? '🚫(건너뜀)' : (isDone ? '✅' : '⬜');
+
+                                let line = `${num}. ${truncate(item?.text || '', 120)} ${status}`;
+
+                                if (item?.formats && Array.isArray(item.formats) && item.formats.length > 0) {
+                                    const formatNames = item.formats.map(f => {
+                                        if (typeof f === 'string') return f;
+                                        if (f && typeof f === 'object' && f.name) return f.name;
+                                        return String(f);
+                                    }).filter(Boolean).slice(0, 6).join(', ');
+                                    if (formatNames) line += ` | 📋서식(제목): ${truncate(formatNames, 120)}`;
+                                }
+
+                                if (item?.result?.summary) {
+                                    line += ` | 🤖요약: ${truncate(item.result.summary, 140)}`;
+                                }
+                                if (item?.tip?.content) {
+                                    line += ` | 💡팁: ${truncate(item.tip.content, 120)}`;
+                                }
+
+                                context += line + `\n`;
+                            });
+
+                            if (total > maxItems) context += `… (총 ${total}개 중 ${maxItems}개만 표시)\n`;
+                            context += `\n`;
+                        }
+                    }
+                }
+
+                return [
+                    `당신은 행정/업무 진행을 돕는 'AI 업무파트너'입니다.`,
+                    `가능하면 아래 [근거 문서 발췌]와 [첨부 자료]에서 확인되는 내용(공문/법령/지침)을 최우선 근거로 답변하세요.`,
+                    `서식/양식 파일은 작성용이므로 "제목(이름)"만 참고하고, 내용은 추정하거나 인용하지 마세요.`,
+                    `답변은 한국어로, 핵심부터 짧게 시작하고 필요 시 단계별로 정리해 주세요.`,
+                    `사용자가 다음 행동을 바로 할 수 있게 체크리스트/예시 문구/주의사항을 포함해 주세요.`,
+                    `반드시 아래 형식을 포함하세요:\n- 근거: (문서명/조항/발췌 근거를 bullet로)\n- 확신도: 높음/보통/낮음 (근거 유무로 판단)\n- 확인 필요: 문서에서 확인되지 않은 부분은 질문으로 되묻기`,
+                    ``,
+                    context ? context.trim() : '',
+                    `[사용자 질문]\n${userText}`,
+                    ``,
+                    `(참고) 현재 설정: provider=${provider}, model=${model}`
+                ].filter(Boolean).join('\n');
             }
 
             toggleChecklistItem(workflowId, itemIndex) {
@@ -1520,7 +2383,9 @@ ${deadlineInfo ? `- 마감일 고려: ${deadlineInfo.includes('오늘 마감') ?
                 const modal = document.getElementById(modalId);
                 if (modal) {
                     modal.classList.remove('show');
-                    document.body.style.overflow = '';
+                    // 다른 모달이 열려있으면 스크롤 잠금 유지
+                    const hasAnyOpenModal = document.querySelector('.modal.show');
+                    document.body.style.overflow = hasAnyOpenModal ? 'hidden' : '';
                 }
             }
 
