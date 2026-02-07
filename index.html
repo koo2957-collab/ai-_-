@@ -16,7 +16,7 @@
             document.head.appendChild(link);
         }
     </script>
-    <title>ai 업무 내비</title>
+    <title>📱 AI 업무 내비게이터</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         :root {
@@ -91,8 +91,8 @@
             color: var(--white);
         }
         .btn-small {
-            padding: 8px 12px;
-            font-size: 0.85rem;
+            padding: 6px 10px;
+            font-size: 0.8rem;
         }
         .main-content {
             padding: 20px;
@@ -411,19 +411,30 @@
             overflow: hidden;
             display: flex;
             flex-direction: column;
-            transform: translateY(12px);
-            animation: bottomSheetUp 0.22s ease forwards;
+            transform: translateY(100%);
+            will-change: transform;
+        }
+        .bottomsheet-modal.show .modal-content {
+            animation: bottomSheetUp 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
         }
         .bottomsheet-modal.closing .modal-content {
-            animation: bottomSheetDown 0.18s ease forwards;
+            animation: bottomSheetDown 0.25s cubic-bezier(0.55, 0.06, 0.68, 0.19) forwards;
         }
         @keyframes bottomSheetUp {
-            from { transform: translateY(100%); }
-            to { transform: translateY(0); }
+            from { 
+                transform: translateY(100%);
+            }
+            to { 
+                transform: translateY(0);
+            }
         }
         @keyframes bottomSheetDown {
-            from { transform: translateY(0); }
-            to { transform: translateY(100%); }
+            from { 
+                transform: translateY(0);
+            }
+            to { 
+                transform: translateY(100%);
+            }
         }
 
         .ai-sheet-header {
@@ -675,7 +686,7 @@
     <!-- 헤더 -->
     <div class="header">
         <div class="header-content">
-            <div class="header-title">ai 업무 내비</div>
+            <div class="header-title">📱 AI 업무 내비게이터</div>
             <div class="header-actions">
                 <button class="btn btn-secondary btn-small" onclick="app.openModal('settingsModal')">⚙️ API</button>
                 <button class="btn btn-primary btn-small" onclick="app.importProjectPackage()">📦 가져오기</button>
@@ -1388,11 +1399,37 @@
 
             openAiPartner() {
                 this.updateAiPartnerContextUI();
-                this.openModal('aiPartnerModal');
-                this.scrollAiChatToBottom();
-
-                const input = document.getElementById('aiChatInput');
-                if (input) setTimeout(() => input.focus(), 50);
+                
+                const modal = document.getElementById('aiPartnerModal');
+                const sheet = document.getElementById('aiPartnerSheet');
+                
+                if (modal && sheet) {
+                    // 모달이 열리기 전 초기 상태를 명확히 설정 (깜박임 방지)
+                    sheet.style.transform = 'translateY(100%)';
+                    sheet.style.willChange = 'transform';
+                    
+                    // 모달 표시
+                    this.openModal('aiPartnerModal');
+                    
+                    // 다음 프레임에서 애니메이션 시작 (부드러운 전환 보장)
+                    requestAnimationFrame(() => {
+                        requestAnimationFrame(() => {
+                            // CSS 애니메이션이 적용되도록 클래스 재적용
+                            modal.classList.remove('show');
+                            void modal.offsetWidth; // 리플로우 강제
+                            modal.classList.add('show');
+                        });
+                    });
+                } else {
+                    this.openModal('aiPartnerModal');
+                }
+                
+                // 스크롤과 포커스는 애니메이션이 시작된 후에 실행
+                setTimeout(() => {
+                    this.scrollAiChatToBottom();
+                    const input = document.getElementById('aiChatInput');
+                    if (input) setTimeout(() => input.focus(), 100);
+                }, 50);
 
                 // FAB가 모달과 겹치지 않도록 숨기기
                 const fab = document.getElementById('aiFab');
