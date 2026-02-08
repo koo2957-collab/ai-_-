@@ -413,27 +413,25 @@
             flex-direction: column;
             transform: translateY(100%);
             will-change: transform;
+            position: fixed;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%) translateY(100%);
+            transition: height 0.3s ease-out, transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
         }
         .bottomsheet-modal.show .modal-content {
-            animation: bottomSheetUp 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+            transform: translateX(-50%) translateY(0);
+            animation: none;
         }
         .bottomsheet-modal.closing .modal-content {
-            animation: bottomSheetDown 0.25s cubic-bezier(0.55, 0.06, 0.68, 0.19) forwards;
+            transform: translateX(-50%) translateY(100%);
+            animation: none;
         }
-        @keyframes bottomSheetUp {
-            from { 
-                transform: translateY(100%);
-            }
-            to { 
-                transform: translateY(0);
-            }
-        }
-        @keyframes bottomSheetDown {
-            from { 
-                transform: translateY(0);
-            }
-            to { 
-                transform: translateY(100%);
+        /* 키보드가 올라올 때 모달 높이 자동 조정 */
+        @media (max-height: 600px) {
+            .bottomsheet-modal.show .modal-content {
+                height: calc(100vh - env(keyboard-inset-height, 0px));
+                max-height: calc(100vh - env(keyboard-inset-height, 0px));
             }
         }
 
@@ -1039,6 +1037,42 @@
                     request.onerror = () => reject(request.error);
                 });
             }
+            
+            async savePdfDocument(docData) {
+                if (!this.db) throw new Error('IndexedDB가 초기화되지 않았습니다');
+                
+                return new Promise((resolve, reject) => {
+                    const transaction = this.db.transaction(['pdfDocuments'], 'readwrite');
+                    const store = transaction.objectStore('pdfDocuments');
+                    
+                    // 기존 문서 찾기 (projectId와 filename으로)
+                    const index = store.index('projectId');
+                    const request = index.getAll(docData.projectId);
+                    
+                    request.onsuccess = () => {
+                        const existingDocs = request.result || [];
+                        const existing = existingDocs.find(d => 
+                            d.filename === docData.filename && 
+                            d.parsedAt === docData.parsedAt
+                        );
+                        
+                        if (existing) {
+                            // 기존 문서 업데이트
+                            const updated = { ...existing, ...docData };
+                            const updateRequest = store.put(updated);
+                            updateRequest.onsuccess = () => resolve(updated.id || existing.id);
+                            updateRequest.onerror = () => reject(updateRequest.error);
+                        } else {
+                            // 새 문서 추가
+                            const addRequest = store.add(docData);
+                            addRequest.onsuccess = () => resolve(addRequest.result);
+                            addRequest.onerror = () => reject(addRequest.error);
+                        }
+                    };
+                    
+                    request.onerror = () => reject(request.error);
+                });
+            }
         }
 
         // 모바일 업무 관리자
@@ -1375,17 +1409,17 @@
                     if (!dragging) return;
                     const y = e.clientY || (e.touches && e.touches[0] && e.touches[0].clientY) || 0;
                     currentY = Math.max(0, y - startY);
-                    sheet.style.transform = `translateY(${currentY}px)`;
+                    sheet.style.transform = `translateX(-50%) translateY(${currentY}px)`;
                 };
                 const onPointerUp = () => {
                     if (!dragging) return;
                     dragging = false;
                     sheet.style.transition = 'transform 0.18s ease';
                     if (currentY > 120) {
-                        sheet.style.transform = '';
+                        sheet.style.transform = 'translateX(-50%) translateY(100%)';
                         this.closeAiPartner();
                     } else {
-                        sheet.style.transform = '';
+                        sheet.style.transform = 'translateX(-50%) translateY(0)';
                     }
                 };
 
@@ -1405,31 +1439,61 @@
                 
                 if (modal && sheet) {
                     // 모달이 열리기 전 초기 상태를 명확히 설정 (깜박임 방지)
-                    sheet.style.transform = 'translateY(100%)';
+                    sheet.style.transform = 'translateX(-50%) translateY(100%)';
                     sheet.style.willChange = 'transform';
                     
                     // 모달 표시
                     this.openModal('aiPartnerModal');
                     
-                    // 다음 프레임에서 애니메이션 시작 (부드러운 전환 보장)
+                    // 부드러운 애니메이션을 위해 약간의 지연 후 애니메이션 시작
                     requestAnimationFrame(() => {
                         requestAnimationFrame(() => {
-                            // CSS 애니메이션이 적용되도록 클래스 재적용
-                            modal.classList.remove('show');
-                            void modal.offsetWidth; // 리플로우 강제
-                            modal.classList.add('show');
+                            // 모달이 완전히 표시된 후 애니메이션 시작
+                            sheet.style.transform = 'translateX(-50%) translateY(0)';
                         });
                     });
                 } else {
                     this.openModal('aiPartnerModal');
                 }
                 
+                // 키보드 이벤트 리스너 추가 (키보드가 올라올 때 모달 높이 조정)
+                const input = document.getElementById('aiChatInput');
+                if (input) {
+                    const adjustModalHeight = () => {
+                        const viewportHeight = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+                        const screenHeight = window.screen.height;
+                        const keyboardHeight = screenHeight - viewportHeight;
+                        
+                        if (keyboardHeight > 100) {
+                            // 키보드가 올라왔을 때
+                            sheet.style.height = `${viewportHeight}px`;
+                            sheet.style.maxHeight = `${viewportHeight}px`;
+                        } else {
+                            // 키보드가 내려갔을 때
+                            sheet.style.height = '82vh';
+                            sheet.style.maxHeight = '92vh';
+                        }
+                    };
+                    
+                    // 포커스/블러 이벤트로 높이 조정
+                    input.addEventListener('focus', () => {
+                        setTimeout(adjustModalHeight, 100);
+                    });
+                    input.addEventListener('blur', () => {
+                        setTimeout(adjustModalHeight, 100);
+                    });
+                    
+                    // visualViewport API 사용 (지원되는 경우)
+                    if (window.visualViewport) {
+                        window.visualViewport.addEventListener('resize', adjustModalHeight);
+                    }
+                }
+                
                 // 스크롤과 포커스는 애니메이션이 시작된 후에 실행
                 setTimeout(() => {
                     this.scrollAiChatToBottom();
-                    const input = document.getElementById('aiChatInput');
-                    if (input) setTimeout(() => input.focus(), 100);
-                }, 50);
+                    if (input) setTimeout(() => input.focus(), 300);
+                }, 350);
 
                 // FAB가 모달과 겹치지 않도록 숨기기
                 const fab = document.getElementById('aiFab');
@@ -1440,21 +1504,41 @@
 
             closeAiPartner() {
                 const modal = document.getElementById('aiPartnerModal');
+                const sheet = document.getElementById('aiPartnerSheet');
                 if (!modal) {
                     this.closeModal('aiPartnerModal');
                     return;
                 }
+                
+                // visualViewport 이벤트 리스너 제거
+                if (window.visualViewport) {
+                    const input = document.getElementById('aiChatInput');
+                    if (input) {
+                        window.visualViewport.removeEventListener('resize', () => {});
+                    }
+                }
+                
                 modal.classList.add('closing');
+                if (sheet) {
+                    sheet.style.transform = 'translateX(-50%) translateY(100%)';
+                }
                 setTimeout(() => {
                     modal.classList.remove('closing');
                     this.closeModal('aiPartnerModal');
+                    
+                    // 모달 높이 초기화
+                    if (sheet) {
+                        sheet.style.height = '';
+                        sheet.style.maxHeight = '';
+                        sheet.style.transform = '';
+                    }
 
                     // 모달이 완전히 닫힌 후 FAB 다시 표시
                     const fab = document.getElementById('aiFab');
                     if (fab) {
                         fab.classList.remove('hidden');
                     }
-                }, 190);
+                }, 300);
             }
 
             getCurrentWorkflow() {
@@ -2908,28 +2992,245 @@ ${deadlineInfo ? `- 마감일 고려: ${deadlineInfo.includes('오늘 마감') ?
 
             // 스마트 문서 컨텍스트 생성
             async getSmartDocContext(doc, questionText, workflowId, apiKey, provider, model) {
-                // 기존 요약이 있으면 사용
-                if (doc.summary && doc.summary.trim().length > 0) {
-                    return doc.summary;
-                }
+                // 1. 기존 요약 가져오기 (전체 개요)
+                const summary = await this.getCachedSummary(doc, workflowId, apiKey, provider, model);
                 
-                // 질문이 구체적인지 판단
+                // 2. 질문이 구체적인지 판단
                 const isSpecificQuestion = questionText && (
-                    questionText.includes('제') && questionText.match(/\d+조/) ||
-                    questionText.match(/\d+일/) ||
-                    questionText.length < 30
+                    questionText.includes('제') && questionText.match(/\d+조/) || // 법조문
+                    questionText.match(/\d+일/) || // 날짜
+                    questionText.match(/\d+원/) || // 금액
+                    questionText.match(/\d+%/) || // 비율
+                    questionText.length < 30 // 짧은 구체적 질문
                 );
                 
-                // 구체적 질문이면 관련 부분 추출
+                // 3. 구체적 질문이면 관련 부분 추출
                 if (isSpecificQuestion && doc.content) {
                     const relevantText = this.extractRelevantText(doc.content, questionText, 2500);
-                    if (relevantText.length > 200) {
+                    
+                    // 관련 부분이 요약과 크게 다르면 사용
+                    const summaryLower = (summary || '').toLowerCase();
+                    const relevantLower = relevantText.toLowerCase();
+                    const similarity = this.calculateTextSimilarity(summaryLower, relevantLower);
+                    
+                    // 유사도가 낮고 관련 부분이 충분히 길면 관련 부분 사용
+                    if (similarity < 0.7 && relevantText.length > 200) {
                         return `[질문 관련 부분]\n${relevantText}`;
                     }
                 }
                 
-                // 일반 질문 또는 관련 부분 추출 실패: 전체 내용 사용
-                return doc.content ? doc.content.substring(0, 2000) : '';
+                // 4. 일반 질문 또는 관련 부분 추출 실패: 전체 요약 사용
+                return summary || (doc.content ? doc.content.substring(0, 2000) : '');
+            }
+            
+            // PDF 요약 캐싱 함수 (IndexedDB 캐시 우선 사용)
+            async getCachedSummary(doc, workflowId, apiKey, provider, model) {
+                // 캐시된 요약이 있으면 반환
+                if (doc.summary && doc.summary.trim().length > 0) {
+                    return doc.summary;
+                }
+                
+                // 없으면 생성 후 저장
+                if (!apiKey || !provider || !model) {
+                    // API 키가 없으면 원본 내용 반환
+                    return doc.content ? doc.content.substring(0, 2000) : '';
+                }
+                
+                try {
+                    const summary = await this.summarizePdfWithAI(doc.content, apiKey, provider, model);
+                    
+                    // 요약 저장
+                    doc.summary = summary;
+                    
+                    // IndexedDB에 저장
+                    if (this.dbReady && this.dbManager) {
+                        try {
+                            await this.dbManager.savePdfDocument({
+                                projectId: workflowId,
+                                filename: doc.filename,
+                                content: doc.content,
+                                parsedAt: doc.parsedAt,
+                                pageCount: doc.pageCount,
+                                summary: summary
+                            });
+                        } catch (error) {
+                            console.error('PDF 요약 저장 실패:', error);
+                        }
+                    }
+                    
+                    return summary;
+                } catch (error) {
+                    console.error('PDF 요약 생성 오류:', error);
+                    // 요약 실패 시 원본 내용 반환 (제한된 길이)
+                    return doc.content ? doc.content.substring(0, 2000) : '';
+                }
+            }
+            
+            // PDF를 웹 AI로 요약
+            async summarizePdfWithAI(pdfContent, apiKey, provider, model) {
+                try {
+                    const summaryPrompt = `다음 문서를 정확하게 요약하세요.
+
+⚠️【중요】문서가 길 경우에도 전체 문서의 모든 조문(제1조부터 마지막 조문까지)을 포함하여 요약하세요.
+부분 요약이 아닌 전체 문서의 핵심 내용을 요약해야 합니다.
+
+⚠️【절대 준수 사항 - 공무원 업무 특성상 필수】
+다음 내용은 반드시 원문 그대로 보존해야 합니다. 변경하거나 추상화하면 요약이 무효화될 수 있습니다.
+
+1. 법령 조문 번호 - 절대 변경 금지
+   - ❌ "법령 조항", "관련 규정" (X)
+   - ✅ "제15조 제2항", "제3조 제1항 제1호" (O) - 정확한 조문번호 필수
+   - 법령 문서인 경우 모든 조문번호를 정확히 보존
+
+2. 숫자 및 금액 - 절대 변경 금지
+   - ❌ "상당한 금액", "많은 인원", "적당한 기간" (X)
+   - ✅ "3억원", "50명", "30일" (O) - 정확한 숫자 그대로
+   - 억, 만, 천 단위 명확히 표기 (예: 3억 5천만원)
+
+3. 날짜 및 기한 - 절대 변경 금지
+   - ❌ "일정 기간", "빠른 시일", "적당한 시기" (X)
+   - ✅ "2025.3.1", "2025년 3월 1일", "30일 이내", "7일 추가" (O) - 정확한 날짜
+   - 연도, 월, 일 모두 정확히 보존
+
+4. 비율 및 퍼센트 - 절대 변경 금지
+   - ❌ "일정 비율", "상당 부분", "대부분" (X)
+   - ✅ "85%", "92.3%", "1/3" (O) - 정확한 수치
+   - 소수점까지 정확히 보존 (예: 92.3%, 15.75%)
+
+5. 절차 및 순서 - 명확히 표기
+   - ✅ "A→B→C" 형식으로 순서 명확히
+   - 단계별 번호 및 절차 정확히 보존
+
+6. 기한 및 조건 - 구체적으로 표기
+   - ✅ "30일 이내", "7일 추가 가능" (O) - 정확한 일수
+   - 조건 및 예외사항 정확히 보존
+
+【요약 형식】
+📄 [문서명]
+
+[핵심 법조항] (법령 문서인 경우)
+- 제X조: [정확한 내용] (조문번호 필수)
+- 제Y조 제Z항: [정확한 내용]
+
+[법정 기한/날짜] (기한이 있는 경우)
+- 기한: 30일 이내 (정확한 일수)
+- 연장: 7일 추가 가능 (조건 명시)
+- 시행일: 2025.1.1 (정확한 날짜)
+
+[핵심 내용]
+- 주요 사항 1
+- 주요 사항 2
+
+[주의사항]
+- 반드시 지켜야 할 사항
+- 위반 시 불이익
+
+【금지 사항 - 절대 위반 금지】
+다음과 같은 추상화나 변경은 절대 금지입니다:
+
+❌ "약 30일", "대략 30일 정도" (X) → ✅ "30일 이내" (O)
+❌ "법령", "관련 규정" (X) → ✅ "제15조 제2항" (O)
+❌ "상당한 금액", "많은 비용" (X) → ✅ "3억원" (O)
+❌ "빠른 시일", "가능한 빨리" (X) → ✅ "7일 이내" (O)
+❌ "일정 비율", "대부분" (X) → ✅ "85%" (O)
+❌ "2025년경", "올해 중" (X) → ✅ "2025.3.1" (O)
+
+【검증 규칙】
+요약 완료 후 다음을 확인하세요:
+1. 모든 숫자가 원문과 일치하는가?
+2. 모든 날짜가 원문과 일치하는가?
+3. 모든 법조문 번호가 원문과 일치하는가?
+4. 모든 금액이 원문과 일치하는가?
+5. 비율과 퍼센트가 원문과 일치하는가?
+
+위 중 하나라도 일치하지 않으면 요약을 다시 생성하세요.
+
+【요약 길이】
+- 목표: 800-1,200자
+- 핵심 정보 우선, 부연 설명 최소화
+- ⚠️ 숫자/날짜/조항/금액/비율은 글자수 제한 없이 모두 포함
+- ⚠️ 법령 문서의 경우 모든 조문번호 포함 필수
+
+--- 원문 ---
+${pdfContent.length > 100000 ? pdfContent.substring(0, 100000) + '\n\n[중략: 문서가 너무 길어 일부만 표시합니다. 요약 시에는 전체 문서를 고려하여 작성하세요.]' : pdfContent}
+--- 끝 ---
+
+⚠️ 위 원문의 모든 숫자, 날짜, 조문번호, 금액, 비율을 정확히 보존하여 요약하세요.
+이 규칙을 위반하면 공무원 업무에서 심각한 오류가 발생할 수 있습니다.`;
+
+                    if (provider === 'gemini') {
+                        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                contents: [{ parts: [{ text: summaryPrompt }] }]
+                            })
+                        });
+                        
+                        if (!response.ok) {
+                            throw new Error('요약 생성 실패');
+                        }
+                        
+                        const data = await response.json();
+                        return data.candidates[0].content.parts[0].text;
+                    } else if (provider === 'chatgpt') {
+                        const response = await fetch('https://api.openai.com/v1/chat/completions', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${apiKey}`
+                            },
+                            body: JSON.stringify({
+                                model: model,
+                                messages: [{ role: 'user', content: summaryPrompt }]
+                            })
+                        });
+                        
+                        if (!response.ok) {
+                            throw new Error('요약 생성 실패');
+                        }
+                        
+                        const data = await response.json();
+                        return data.choices[0].message.content;
+                    } else if (provider === 'claude') {
+                        const response = await fetch('https://api.anthropic.com/v1/messages', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'x-api-key': apiKey,
+                                'anthropic-version': '2023-06-01'
+                            },
+                            body: JSON.stringify({
+                                model: model,
+                                max_tokens: 4096,
+                                messages: [{ role: 'user', content: summaryPrompt }]
+                            })
+                        });
+                        
+                        if (!response.ok) {
+                            throw new Error('요약 생성 실패');
+                        }
+                        
+                        const data = await response.json();
+                        return data.content[0].text;
+                    } else {
+                        throw new Error('지원하지 않는 프로바이더입니다');
+                    }
+                } catch (error) {
+                    console.error('PDF 요약 오류:', error);
+                    // 요약 실패 시 원본 내용 반환 (제한된 길이)
+                    return `[요약 실패 - 원본 내용]\n${pdfContent.substring(0, 2000)}...`;
+                }
+            }
+            
+            // 간단한 텍스트 유사도 계산 함수
+            calculateTextSimilarity(text1, text2) {
+                if (!text1 || !text2) return 0;
+                const words1 = new Set(text1.toLowerCase().split(/\s+/).filter(w => w.length > 1));
+                const words2 = new Set(text2.toLowerCase().split(/\s+/).filter(w => w.length > 1));
+                const intersection = new Set([...words1].filter(x => words2.has(x)));
+                const union = new Set([...words1, ...words2]);
+                return union.size > 0 ? intersection.size / union.size : 0;
             }
 
             // 관련 텍스트 추출
