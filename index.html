@@ -2283,11 +2283,39 @@
                 input.click();
             }
 
-            _viewPhoto(src) {
+            _viewPhoto(src, workflowId, itemIndex, photoIndex) {
                 const ov = document.createElement('div');
-                ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:4000;display:flex;align-items:center;justify-content:center;';
-                ov.innerHTML = `<img src="${src}" style="max-width:95%;max-height:90vh;border-radius:8px;object-fit:contain;"><button style="position:absolute;top:16px;right:16px;background:rgba(255,255,255,0.15);border:none;border-radius:50%;width:36px;height:36px;color:white;font-size:1.1rem;cursor:pointer;">✕</button>`;
-                ov.addEventListener('click', () => ov.remove());
+                ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:4000;display:flex;flex-direction:column;align-items:center;justify-content:center;';
+                ov.innerHTML = `
+                    <img src="${src}" style="max-width:95%;max-height:80vh;border-radius:8px;object-fit:contain;">
+                    <div style="position:absolute;top:0;left:0;right:0;display:flex;justify-content:space-between;align-items:center;padding:14px 16px;">
+                        <button id="photoDeleteBtn" style="display:flex;align-items:center;gap:6px;background:rgba(239,68,68,0.8);border:none;border-radius:8px;color:white;padding:8px 14px;font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+                            삭제
+                        </button>
+                        <button id="photoCloseBtn" style="background:rgba(255,255,255,0.15);border:none;border-radius:50%;width:36px;height:36px;color:white;font-size:1.1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;">✕</button>
+                    </div>`;
+
+                ov.querySelector('#photoCloseBtn').addEventListener('click', () => ov.remove());
+                ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+
+                const deleteBtn = ov.querySelector('#photoDeleteBtn');
+                if (workflowId !== undefined && itemIndex !== undefined && photoIndex !== undefined) {
+                    deleteBtn.addEventListener('click', () => {
+                        if (!confirm('이 사진을 삭제하시겠습니까?')) return;
+                        const wf = this.allData.workflows.find(w => w.id === workflowId);
+                        if (wf?.checklist?.[itemIndex]?.photos) {
+                            wf.checklist[itemIndex].photos.splice(photoIndex, 1);
+                            this.saveWorkflow(wf);
+                            this.showChecklist(workflowId);
+                        }
+                        ov.remove();
+                        this.showToast('success', '✅', '사진이 삭제되었습니다');
+                    });
+                } else {
+                    deleteBtn.style.display = 'none';
+                }
+
                 document.body.appendChild(ov);
             }
 
@@ -2948,7 +2976,7 @@
 
                         // 사진 썸네일
                     const photosHtml = (item.photos && item.photos.length > 0)
-                        ? `<div class="cl-photo-wrap">${item.photos.map((p,pi) => `<img class="cl-photo-thumb" src="${p}" onclick="app._viewPhoto('${p}')" />`).join('')}<div class="cl-photo-add" onclick="event.stopPropagation();app._addPhoto(${workflowId},${index})">${this.ic.download(18)}</div></div>`
+                        ? `<div class="cl-photo-wrap">${item.photos.map((p,pi) => `<img class="cl-photo-thumb" src="${p}" onclick="app._viewPhoto('${p}',${workflowId},${index},${pi})" title="탭: 크게보기 / 삭제 가능" />`).join('')}<div class="cl-photo-add" onclick="event.stopPropagation();app._addPhoto(${workflowId},${index})" title="사진 추가">${this.ic.download(18)}</div></div>`
                         : '';
 
                     return `
