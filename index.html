@@ -1387,6 +1387,27 @@
                     <p style="font-size:0.71rem;color:var(--text-muted);text-align:center;margin:0;">API Key는 백업·내보내기 파일에 포함되지 않습니다</p>
                 </div>
 
+                <!-- 데이터 초기화 섹션 -->
+                <div style="border-top:1px solid var(--border-subtle);padding-top:16px;">
+                    <p style="font-size:0.68rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em;margin:0 0 10px;">데이터 초기화</p>
+                    <div style="display:flex;flex-direction:column;gap:8px;">
+                        <button class="btn btn-secondary" style="justify-content:flex-start;gap:10px;text-align:left;" onclick="app.confirmReset('workflows')">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+                            <span>
+                                <span style="display:block;font-size:0.85rem;font-weight:600;color:var(--text-dark);">업무 전체 삭제</span>
+                                <span style="display:block;font-size:0.72rem;color:var(--text-muted);margin-top:1px;">가져온 업무만 삭제 · API 키·설정 유지</span>
+                            </span>
+                        </button>
+                        <button class="btn" style="background:rgba(239,68,68,0.07);border:1px solid rgba(239,68,68,0.18);color:#dc2626;justify-content:flex-start;gap:10px;text-align:left;" onclick="app.confirmReset('all')">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+                            <span>
+                                <span style="display:block;font-size:0.85rem;font-weight:600;">전체 초기화</span>
+                                <span style="display:block;font-size:0.72rem;color:rgba(220,38,38,0.7);margin-top:1px;">업무 + API 키 + 설정 모두 삭제</span>
+                            </span>
+                        </button>
+                    </div>
+                </div>
+
             </div>
         </div>
     </div>
@@ -4127,6 +4148,93 @@ ${deadlineInfo ? `- 마감일 고려: ${deadlineInfo.includes('오늘 마감') ?
                     input.focus();
                 }
             }
+
+            // ── 데이터 초기화 ─────────────────────────────────────────────
+            confirmReset(type) {
+                this.closeModal('settingsModal');
+
+                const isAll = type === 'all';
+                const ov = document.createElement('div');
+                ov.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.55);z-index:3000;display:flex;align-items:center;justify-content:center;padding:24px;';
+                ov.innerHTML = `
+                    <div style="background:white;border-radius:16px;padding:24px 20px 18px;max-width:340px;width:100%;box-shadow:0 12px 40px rgba(15,23,42,0.22);">
+                        <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+                            <div style="width:36px;height:36px;border-radius:10px;background:rgba(239,68,68,0.1);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                            </div>
+                            <div>
+                                <div style="font-size:0.97rem;font-weight:700;color:#111827;">${isAll ? '전체 초기화' : '업무 전체 삭제'}</div>
+                                <div style="font-size:0.75rem;color:#6b7280;margin-top:2px;">이 작업은 되돌릴 수 없습니다</div>
+                            </div>
+                        </div>
+                        <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:12px;margin-bottom:18px;font-size:0.82rem;color:#991b1b;line-height:1.6;">
+                            ${isAll
+                                ? '<strong>삭제되는 항목:</strong><br>• 가져온 업무 전체<br>• API 키 (Gemini / ChatGPT / Claude)<br>• 앱 설정 및 대화 이력'
+                                : '<strong>삭제되는 항목:</strong><br>• 가져온 업무 전체<br><br><span style="color:#059669;">유지되는 항목:</span> API 키, 설정'}
+                        </div>
+                        <div style="display:flex;gap:8px;">
+                            <button onclick="this.closest('[style*=fixed]').remove();app.openModal('settingsModal')"
+                                style="flex:1;padding:11px;background:var(--bg-subtle);border:1px solid var(--border-light);border-radius:10px;font-weight:600;font-size:0.88rem;cursor:pointer;font-family:inherit;color:var(--text-dark);">취소</button>
+                            <button onclick="this.closest('[style*=fixed]').remove();app.executeReset('${type}')"
+                                style="flex:1;padding:11px;background:#dc2626;border:none;border-radius:10px;font-weight:700;font-size:0.88rem;cursor:pointer;font-family:inherit;color:white;">
+                                ${isAll ? '전체 초기화' : '업무 삭제'}
+                            </button>
+                        </div>
+                    </div>`;
+                ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+                document.body.appendChild(ov);
+            }
+
+            async executeReset(type) {
+                try {
+                    const isAll = type === 'all';
+
+                    // 1) IndexedDB 모든 업무 삭제
+                    if (this.dbManager && this.dbManager.db) {
+                        const stores = ['projects', 'projectFiles', 'formFiles', 'checklistDetails', 'pdfDocuments'];
+                        for (const store of stores) {
+                            try {
+                                await new Promise((resolve, reject) => {
+                                    const tx = this.dbManager.db.transaction([store], 'readwrite');
+                                    const req = tx.objectStore(store).clear();
+                                    req.onsuccess = () => resolve();
+                                    req.onerror = () => reject(req.error);
+                                });
+                            } catch (_) { /* store가 없으면 무시 */ }
+                        }
+                    }
+
+                    // 2) 메모리 초기화
+                    this.allData.workflows = [];
+                    this.checklistDetails = {};
+                    this.lastImportedWorkflowIds = [];
+                    this._aiChatHistory = [];
+                    this.aiPartnerMessages = [];
+
+                    if (isAll) {
+                        // API 키 + 설정 초기화
+                        this.allData.geminiApiKey = '';
+                        this.allData.chatgptApiKey = '';
+                        this.allData.claudeApiKey = '';
+                        this.allData.provider = 'gemini';
+                        this.allData.modelMode = 'auto';
+                        localStorage.removeItem(this.API_KEY_STORAGE);
+                        localStorage.removeItem('appSettings_v5.2');
+                        localStorage.removeItem('aiUsageStats_v6');
+                    }
+
+                    // 3) UI 갱신
+                    this.displayWorkflows();
+                    this.updateApiStatusBadge();
+
+                    const msg = isAll ? '전체 초기화가 완료되었습니다' : '업무가 모두 삭제되었습니다';
+                    this.showToast('success', '✅', msg);
+                } catch (error) {
+                    this.showToast('error', '❌', '초기화 실패: ' + error.message);
+                    console.error('Reset error:', error);
+                }
+            }
+            // ── 데이터 초기화 끝 ──────────────────────────────────────────
 
             deleteApiKey(provider) {
                 if (provider === 'gemini') this.allData.geminiApiKey = '';
