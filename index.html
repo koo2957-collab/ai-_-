@@ -1040,6 +1040,14 @@
             letter-spacing: -0.01em;
         }
         .cl-subtitle { font-size: 0.68rem; color: rgba(255,255,255,0.48); margin-top: 1px; }
+        .cl-share-btn {
+            width: 36px; height: 36px; flex-shrink: 0;
+            background: rgba(255,255,255,0.1); border: none;
+            border-radius: 8px; color: rgba(255,255,255,0.8); cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            touch-action: manipulation; transition: background 0.15s;
+        }
+        .cl-share-btn:active { background: rgba(255,255,255,0.22); }
         .cl-ai-open-btn {
             width: 36px; height: 36px; flex-shrink: 0;
             background: linear-gradient(145deg,#4c1d95,#8b5cf6); border: none;
@@ -1167,6 +1175,32 @@
             width: calc(100% - 24px); font-family: inherit;
         }
         .action-sheet-cancel:active { opacity: 0.7; }
+
+        /* ===== 업무 선택 피커 ===== */
+        .picker-item {
+            display: flex; align-items: center; gap: 12px;
+            padding: 13px 16px; cursor: pointer;
+            border-bottom: 1px solid var(--border-subtle);
+            transition: background 0.1s;
+        }
+        .picker-item:last-child { border-bottom: none; }
+        .picker-item:active { background: var(--bg-subtle); }
+        .picker-check { display: none; }
+        .picker-check-box {
+            width: 22px; height: 22px; border-radius: 6px; flex-shrink: 0;
+            border: 2px solid var(--border-light); background: white;
+            display: flex; align-items: center; justify-content: center;
+            transition: all 0.15s;
+        }
+        .picker-check:checked + .picker-check-box {
+            background: var(--accent); border-color: var(--accent);
+        }
+        .picker-check:checked + .picker-check-box svg { display: block; }
+        .picker-check-box svg { display: none; }
+        .picker-info { flex: 1; min-width: 0; }
+        .picker-title { font-size: 0.88rem; font-weight: 600; color: var(--text-dark); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .picker-meta { font-size: 0.73rem; color: var(--text-muted); margin-top: 2px; }
+        .picker-progress-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
 
         /* ===== 빈 화면 개선 ===== */
         .empty-guide {
@@ -1423,6 +1457,10 @@
                 <div class="cl-title" id="checklistModalTitle">체크리스트</div>
                 <div class="cl-subtitle" id="clSubtitle">0 / 0 완료</div>
             </div>
+            <!-- 현재 업무 공유 버튼 -->
+            <button class="cl-share-btn" onclick="app.shareCurrentWorkflow()" aria-label="공유">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            </button>
             <button class="cl-ai-open-btn" onclick="app.openAiPartner()" aria-label="AI 업무파트너">
                 <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><circle cx="9" cy="10" r="1" fill="white" stroke="none"/><circle cx="12" cy="10" r="1" fill="white" stroke="none"/><circle cx="15" cy="10" r="1" fill="white" stroke="none"/></svg>
             </button>
@@ -1858,52 +1896,215 @@
             }
 
             // ── 공유 기능 ────────────────────────────────────────────────
+
+            // 체크리스트 화면 헤더의 공유 버튼 → 현재 업무 1개 공유
+            shareCurrentWorkflow() {
+                const wf = this.getCurrentWorkflow();
+                if (!wf) { this.showToast('info', 'ℹ️', '공유할 업무가 없습니다'); return; }
+                this._showSingleShareSheet(wf);
+            }
+
+            // 단일 업무 공유 액션 시트
+            _showSingleShareSheet(wf) {
+                const overlay = document.createElement('div');
+                overlay.className = 'action-sheet-overlay';
+                overlay.innerHTML = `
+                    <div class="action-sheet">
+                        <div class="action-sheet-title" style="display:flex;flex-direction:column;gap:3px;">
+                            <span>공유 방법 선택</span>
+                            <span style="font-size:0.78rem;font-weight:500;color:var(--text-muted);text-transform:none;letter-spacing:0;">${this.escapeHtml(wf.title)}</span>
+                        </div>
+
+                        <button class="action-sheet-item" id="sSingleFile">
+                            <div class="action-sheet-icon" style="background:rgba(37,99,235,0.1);color:var(--accent);">${this.ic.upload(22)}</div>
+                            <div class="action-sheet-item-text">
+                                <div class="action-sheet-item-label">업무 파일 공유</div>
+                                <div class="action-sheet-item-desc">JSON 파일 → 카카오톡·메일로 전송</div>
+                            </div>
+                        </button>
+                        <button class="action-sheet-item" id="sSingleText">
+                            <div class="action-sheet-icon" style="background:rgba(5,150,105,0.1);color:var(--success);">${this.ic.list(22)}</div>
+                            <div class="action-sheet-item-text">
+                                <div class="action-sheet-item-label">체크리스트 텍스트 공유</div>
+                                <div class="action-sheet-item-desc">진행 현황을 텍스트로 전송</div>
+                            </div>
+                        </button>
+                        <button class="action-sheet-item" id="sSingleCopy">
+                            <div class="action-sheet-icon" style="background:rgba(139,92,246,0.1);color:#8b5cf6;">${this.ic.copy(22)}</div>
+                            <div class="action-sheet-item-text">
+                                <div class="action-sheet-item-label">클립보드에 복사</div>
+                                <div class="action-sheet-item-desc">텍스트 복사 후 앱에 붙여넣기</div>
+                            </div>
+                        </button>
+                        <button class="action-sheet-cancel" id="sSingleCancel">취소</button>
+                    </div>`;
+
+                overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+                overlay.querySelector('#sSingleCancel').addEventListener('click', () => overlay.remove());
+                overlay.querySelector('#sSingleFile').addEventListener('click', () => { overlay.remove(); this.shareWorkflowsAsFile([wf]); });
+                overlay.querySelector('#sSingleText').addEventListener('click', () => { overlay.remove(); this._shareText(this._formatChecklistText(wf)); });
+                overlay.querySelector('#sSingleCopy').addEventListener('click', () => { overlay.remove(); this.shareAsCopy(); });
+                document.body.appendChild(overlay);
+            }
+
+            // 메인 ≡ 메뉴의 공유 → 업무 선택 시트
             openShareSheet() {
                 if (this.allData.workflows.length === 0) {
                     this.showToast('info', 'ℹ️', '공유할 업무가 없습니다. 먼저 가져오기를 해주세요.');
                     return;
                 }
+                this._showWorkflowPickerSheet();
+            }
+
+            // 업무 선택 시트 (체크박스 목록)
+            _showWorkflowPickerSheet() {
+                const wfs = [...this.allData.workflows].sort((a, b) => {
+                    const iA = a.importedAt ? new Date(a.importedAt).getTime() : 0;
+                    const iB = b.importedAt ? new Date(b.importedAt).getTime() : 0;
+                    return iB - iA;
+                });
+
+                const itemsHtml = wfs.map((wf, i) => {
+                    const progress = this.calculateProgress(wf);
+                    const done = progress >= 100;
+                    return `
+                        <label class="picker-item" for="pick-${i}">
+                            <input type="checkbox" id="pick-${i}" class="picker-check" data-id="${wf.id}" ${i === 0 ? 'checked' : ''}>
+                            <div class="picker-check-box">
+                                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                            </div>
+                            <div class="picker-info">
+                                <div class="picker-title">${this.escapeHtml(wf.title)}</div>
+                                <div class="picker-meta">${progress}% 완료${wf.date ? ' · ' + wf.date : ''}</div>
+                            </div>
+                            <div class="picker-progress-dot" style="background:${done ? 'var(--success)' : 'var(--accent)'};"></div>
+                        </label>`;
+                }).join('');
 
                 const overlay = document.createElement('div');
                 overlay.className = 'action-sheet-overlay';
                 overlay.innerHTML = `
-                    <div class="action-sheet">
-                        <div class="action-sheet-title">공유 방법 선택</div>
+                    <div class="action-sheet" style="max-height:80vh;display:flex;flex-direction:column;">
+                        <div class="action-sheet-title" style="display:flex;align-items:center;justify-content:space-between;">
+                            <span>공유할 업무 선택</span>
+                            <button id="pickSelectAll" style="background:none;border:none;color:var(--accent);font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit;padding:0;">전체 선택</button>
+                        </div>
+                        <div id="pickerList" style="overflow-y:auto;flex:1;max-height:45vh;">${itemsHtml}</div>
+                        <div style="padding:12px 16px 0;display:flex;flex-direction:column;gap:8px;">
+                            <button id="pickShare" class="btn btn-primary" style="width:100%;padding:13px;font-size:0.92rem;justify-content:center;">
+                                ${this.ic.upload(16)} 선택한 업무 공유
+                            </button>
+                            <button class="action-sheet-cancel" id="pickCancel">취소</button>
+                        </div>
+                    </div>`;
 
-                        <button class="action-sheet-item" id="shareFileBtn">
+                // 전체 선택/해제
+                let allSelected = false;
+                overlay.querySelector('#pickSelectAll').addEventListener('click', () => {
+                    allSelected = !allSelected;
+                    overlay.querySelectorAll('.picker-check').forEach(c => c.checked = allSelected);
+                    overlay.querySelector('#pickSelectAll').textContent = allSelected ? '전체 해제' : '전체 선택';
+                });
+
+                // 공유 실행
+                overlay.querySelector('#pickShare').addEventListener('click', () => {
+                    const ids = [...overlay.querySelectorAll('.picker-check:checked')].map(c => Number(c.dataset.id));
+                    if (ids.length === 0) { this.showToast('info', 'ℹ️', '업무를 하나 이상 선택해 주세요'); return; }
+                    const selected = this.allData.workflows.filter(w => ids.includes(w.id));
+                    overlay.remove();
+                    this._showPickedShareSheet(selected);
+                });
+
+                overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+                overlay.querySelector('#pickCancel').addEventListener('click', () => overlay.remove());
+                document.body.appendChild(overlay);
+            }
+
+            // 선택된 업무 공유 방법 시트
+            _showPickedShareSheet(selected) {
+                const count = selected.length;
+                const overlay = document.createElement('div');
+                overlay.className = 'action-sheet-overlay';
+                overlay.innerHTML = `
+                    <div class="action-sheet">
+                        <div class="action-sheet-title" style="display:flex;flex-direction:column;gap:3px;">
+                            <span>공유 방법 선택</span>
+                            <span style="font-size:0.78rem;font-weight:500;color:var(--text-muted);text-transform:none;letter-spacing:0;">업무 ${count}개 선택됨</span>
+                        </div>
+                        <button class="action-sheet-item" id="pPickFile">
                             <div class="action-sheet-icon" style="background:rgba(37,99,235,0.1);color:var(--accent);">${this.ic.upload(22)}</div>
                             <div class="action-sheet-item-text">
                                 <div class="action-sheet-item-label">업무 파일 공유</div>
-                                <div class="action-sheet-item-desc">JSON 파일로 카카오톡·메일·메시지 앱으로 전송</div>
+                                <div class="action-sheet-item-desc">JSON 파일 → 카카오톡·메일로 전송</div>
                             </div>
                         </button>
-
-                        <button class="action-sheet-item" id="shareTextBtn">
+                        ${count === 1 ? `
+                        <button class="action-sheet-item" id="pPickText">
                             <div class="action-sheet-icon" style="background:rgba(5,150,105,0.1);color:var(--success);">${this.ic.list(22)}</div>
                             <div class="action-sheet-item-text">
                                 <div class="action-sheet-item-label">체크리스트 텍스트 공유</div>
-                                <div class="action-sheet-item-desc">현재 업무 체크리스트를 텍스트로 전송</div>
+                                <div class="action-sheet-item-desc">진행 현황을 텍스트로 전송</div>
                             </div>
-                        </button>
-
-                        <button class="action-sheet-item" id="shareCopyBtn">
-                            <div class="action-sheet-icon" style="background:rgba(139,92,246,0.1);color:#8b5cf6;">${this.ic.copy(22)}</div>
-                            <div class="action-sheet-item-text">
-                                <div class="action-sheet-item-label">클립보드에 복사</div>
-                                <div class="action-sheet-item-desc">텍스트를 복사해 원하는 앱에 붙여넣기</div>
-                            </div>
-                        </button>
-
-                        <button class="action-sheet-cancel" id="shareCancel">취소</button>
-                    </div>
-                `;
+                        </button>` : ''}
+                        <button class="action-sheet-cancel" id="pPickCancel">취소</button>
+                    </div>`;
 
                 overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
-                overlay.querySelector('#shareCancel').addEventListener('click', () => overlay.remove());
-                overlay.querySelector('#shareFileBtn').addEventListener('click', () => { overlay.remove(); this.shareAsFile(); });
-                overlay.querySelector('#shareTextBtn').addEventListener('click', () => { overlay.remove(); this.shareAsText(); });
-                overlay.querySelector('#shareCopyBtn').addEventListener('click', () => { overlay.remove(); this.shareAsCopy(); });
+                overlay.querySelector('#pPickCancel').addEventListener('click', () => overlay.remove());
+                overlay.querySelector('#pPickFile').addEventListener('click', () => { overlay.remove(); this.shareWorkflowsAsFile(selected); });
+                if (count === 1) {
+                    overlay.querySelector('#pPickText')?.addEventListener('click', () => { overlay.remove(); this._shareText(this._formatChecklistText(selected[0])); });
+                }
                 document.body.appendChild(overlay);
+            }
+
+            // 선택한 업무들만 파일로 공유
+            async shareWorkflowsAsFile(workflows) {
+                try {
+                    const safeWfs = workflows.map(wf => {
+                        try { return JSON.parse(JSON.stringify(wf)); }
+                        catch (_) {
+                            const s = {};
+                            for (const [k,v] of Object.entries(wf)) { try { JSON.stringify(v); s[k]=v; } catch(_){} }
+                            return s;
+                        }
+                    });
+                    const json = JSON.stringify({ type:'project', exportedAt:new Date().toISOString(), exportedFrom:'mobile', projects:safeWfs }, null, 2);
+                    const now = new Date();
+                    const d = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}`;
+                    const label = workflows.length === 1 ? workflows[0].title.substring(0,20).replace(/[\\/:*?"<>|]/g,'') : `업무${workflows.length}개`;
+                    const fileName = `업무_${label}_${d}.json`;
+                    const blob = new Blob([json], { type:'application/json' });
+                    const file = new File([blob], fileName, { type:'application/json' });
+
+                    if (navigator.canShare && navigator.canShare({ files:[file] })) {
+                        try {
+                            await navigator.share({ title:'AI 업무 패키지', text:`업무 ${workflows.length}개 포함`, files:[file] });
+                            return;
+                        } catch (e) { if (e.name === 'AbortError') return; }
+                    }
+                    this._downloadBlob(blob, fileName);
+                    this._showShareGuide(fileName);
+                } catch (e) {
+                    if (e.name !== 'AbortError') this.showToast('error','❌','공유 실패: '+(e.message||e));
+                }
+            }
+
+            // 텍스트 공유 공통 헬퍼
+            async _shareText(text) {
+                try {
+                    if (navigator.share) {
+                        await navigator.share({ text });
+                    } else {
+                        await navigator.clipboard.writeText(text);
+                        this.showToast('success','✅','클립보드에 복사되었습니다');
+                    }
+                } catch (e) {
+                    if (e.name !== 'AbortError') {
+                        try { await navigator.clipboard.writeText(text); this.showToast('success','✅','클립보드에 복사되었습니다'); }
+                        catch(_) { this.showToast('error','❌','공유에 실패했습니다'); }
+                    }
+                }
             }
 
             // 파일 다운로드 헬퍼
@@ -1940,41 +2141,8 @@
             }
 
             async shareAsFile() {
-                try {
-                    const json = this._buildExportPackage();
-                    const now = new Date();
-                    const d = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}`;
-                    const fileName = `업무패키지_${d}.json`;
-                    const blob = new Blob([json], { type: 'application/json' });
-                    const file = new File([blob], fileName, { type: 'application/json' });
-
-                    // ① 네이티브 공유 시트 시도 (파일 첨부) — 성공 시 카카오톡·메일 바로 선택 가능
-                    if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                        try {
-                            await navigator.share({
-                                title: 'AI 업무 패키지',
-                                text: `업무 ${this.allData.workflows.length}개 포함 — AI 업무 내비게이터에서 가져오기로 열어보세요.`,
-                                files: [file]
-                            });
-                            return; // 공유 성공 → 종료
-                        } catch (e) {
-                            if (e.name === 'AbortError') return; // 사용자가 취소
-                            // 공유 실패 → ②로 폴백
-                        }
-                    }
-
-                    // ② 파일 저장 (파일 앱 → 수동 공유)
-                    this._downloadBlob(blob, fileName);
-
-                    // 저장 후 안내 팝업
-                    this._showShareGuide(fileName);
-
-                } catch (e) {
-                    if (e.name !== 'AbortError') {
-                        this.showToast('error', '❌', '오류: ' + (e.message || String(e)));
-                        console.error('shareAsFile:', e);
-                    }
-                }
+                // 전체 업무 공유 (기존 동작 유지 — 실제로는 openShareSheet에서 picker로 대체됨)
+                await this.shareWorkflowsAsFile(this.allData.workflows);
             }
 
             _showShareGuide(fileName) {
@@ -2017,20 +2185,7 @@
 
             async shareAsText() {
                 const wf = this.getCurrentWorkflow();
-                const text = wf ? this._formatChecklistText(wf) : this._formatAllWorkflowsText();
-                try {
-                    if (navigator.share) {
-                        await navigator.share({ title: wf ? wf.title : 'AI 업무 목록', text });
-                    } else {
-                        await navigator.clipboard.writeText(text);
-                        this.showToast('success', '✅', '클립보드에 복사되었습니다');
-                    }
-                } catch (e) {
-                    if (e.name !== 'AbortError') {
-                        try { await navigator.clipboard.writeText(text); this.showToast('success', '✅', '클립보드에 복사되었습니다'); }
-                        catch (_) { this.showToast('error', '❌', '공유에 실패했습니다'); }
-                    }
-                }
+                await this._shareText(wf ? this._formatChecklistText(wf) : this._formatAllWorkflowsText());
             }
 
             async shareAsCopy() {
@@ -2039,9 +2194,7 @@
                 try {
                     await navigator.clipboard.writeText(text);
                     this.showToast('success', '✅', '클립보드에 복사되었습니다');
-                } catch (_) {
-                    this.showToast('error', '❌', '복사에 실패했습니다');
-                }
+                } catch (_) { this.showToast('error', '❌', '복사에 실패했습니다'); }
             }
 
             _formatChecklistText(wf) {
