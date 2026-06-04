@@ -2231,21 +2231,29 @@
             // ⑧ 스와이프 완료 (체크리스트 항목)
             // ════════════════════════════════════════════════════════════
             _initSwipeToComplete(workflowId) {
-                // showChecklist 후 카드에 제스처 부착
                 setTimeout(() => {
                     document.querySelectorAll('.cl-card:not(.skipped)').forEach((card, idx) => {
                         let startX = 0, startY = 0, swiping = false;
+
                         card.addEventListener('touchstart', e => {
+                            e.stopPropagation(); // 화면 스와이프로 버블링 차단
                             startX = e.touches[0].clientX;
                             startY = e.touches[0].clientY;
                             swiping = false;
                         }, { passive: true });
+
                         card.addEventListener('touchmove', e => {
+                            e.stopPropagation();
                             const dx = e.touches[0].clientX - startX;
                             const dy = Math.abs(e.touches[0].clientY - startY);
-                            if (dx > 20 && dy < 40) { swiping = true; card.style.transform = `translateX(${Math.min(dx*0.4, 40)}px)`; }
+                            if (dx > 20 && dy < 40) {
+                                swiping = true;
+                                card.style.transform = `translateX(${Math.min(dx * 0.4, 40)}px)`;
+                            }
                         }, { passive: true });
+
                         card.addEventListener('touchend', e => {
+                            e.stopPropagation();
                             const dx = e.changedTouches[0].clientX - startX;
                             card.style.transition = 'transform 0.18s ease';
                             card.style.transform = '';
@@ -2894,22 +2902,38 @@
             }
 
             _initClSwipe(el) {
-                let startX = 0, startY = 0, swiping = false;
+                let startX = 0, startY = 0, swiping = false, locked = false;
+                const EDGE_ZONE = 44; // 좌측 끝 44px에서만 화면 닫기 스와이프 활성화
+
                 const onStart = e => {
-                    startX = (e.touches?.[0] || e).clientX;
+                    const x = (e.touches?.[0] || e).clientX;
+                    // 좌측 엣지 영역 밖이면 잠금 — 카드 스와이프와 충돌 방지
+                    if (x > EDGE_ZONE) { locked = true; swiping = false; return; }
+                    locked = false;
+                    startX = x;
                     startY = (e.touches?.[0] || e).clientY;
                     swiping = false;
                 };
                 const onMove = e => {
+                    if (locked) return;
                     const dx = (e.touches?.[0] || e).clientX - startX;
                     const dy = Math.abs((e.touches?.[0] || e).clientY - startY);
-                    if (dx > 30 && dy < 60) { swiping = true; el.style.transform = `translateX(${dx}px)`; }
+                    if (dx > 10 && dy < 60) {
+                        swiping = true;
+                        el.style.transform = `translateX(${Math.min(dx, window.innerWidth * 0.6)}px)`;
+                    }
                 };
                 const onEnd = e => {
+                    if (locked) { locked = false; return; }
                     const dx = (e.changedTouches?.[0] || e).clientX - startX;
-                    el.style.transition = '';
-                    if (swiping && dx > 90) { this.closeChecklist(); }
-                    else { el.style.transform = ''; }
+                    el.style.transition = 'transform 0.2s ease';
+                    if (swiping && dx > 80) {
+                        el.style.transform = `translateX(${window.innerWidth}px)`;
+                        setTimeout(() => { el.style.transition = ''; this.closeChecklist(); }, 200);
+                    } else {
+                        el.style.transform = '';
+                        setTimeout(() => { el.style.transition = ''; }, 220);
+                    }
                     swiping = false;
                 };
                 el.addEventListener('touchstart', onStart, { passive: true });
