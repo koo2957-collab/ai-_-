@@ -1228,6 +1228,78 @@
         }
         .offline-dot { width: 7px; height: 7px; border-radius: 50%; background: #ef4444; flex-shrink: 0; }
 
+        /* ===== 날짜 피커 시트 ===== */
+        .date-sheet {
+            background: var(--white); border-radius: 18px 18px 0 0;
+            width: 100%; max-width: 500px;
+            padding: 0 0 calc(16px + env(safe-area-inset-bottom,0px));
+            animation: agSlideUp 0.25s cubic-bezier(0.16,1,0.3,1);
+        }
+        .date-sheet-header {
+            padding: 16px 18px 14px;
+            border-bottom: 1px solid var(--border-subtle);
+            display: flex; align-items: center; justify-content: space-between;
+        }
+        .date-sheet-title { font-size: 0.95rem; font-weight: 700; color: var(--text-dark); letter-spacing: -0.02em; }
+        .date-sheet-current { font-size: 0.75rem; color: var(--text-muted); margin-top: 2px; }
+        .date-sheet-close {
+            width: 28px; height: 28px; border-radius: 7px; border: none;
+            background: var(--bg-subtle); color: var(--text-muted);
+            cursor: pointer; display: flex; align-items: center; justify-content: center;
+        }
+        .date-shortcuts {
+            display: flex; gap: 8px; padding: 14px 16px 10px;
+        }
+        .date-shortcut {
+            flex: 1; padding: 9px 4px; border-radius: 10px;
+            border: 1.5px solid var(--border-light); background: var(--bg-subtle);
+            color: var(--text-dark); font-size: 0.8rem; font-weight: 700;
+            cursor: pointer; font-family: inherit; text-align: center;
+            transition: all 0.12s;
+        }
+        .date-shortcut:hover, .date-shortcut:active {
+            background: var(--accent); border-color: var(--accent); color: white;
+        }
+        .date-input-wrap {
+            padding: 6px 16px 14px;
+            display: flex; flex-direction: column; gap: 6px;
+        }
+        .date-input-label { font-size: 0.72rem; font-weight: 700; color: var(--text-muted); letter-spacing: 0.04em; text-transform: uppercase; }
+        .date-native-input {
+            width: 100%; padding: 12px 14px;
+            border: 1.5px solid var(--border-light); border-radius: 10px;
+            font-family: inherit; font-size: 0.95rem; color: var(--text-dark);
+            background: var(--white); outline: none;
+            transition: border-color 0.15s;
+        }
+        .date-native-input:focus { border-color: var(--accent); }
+        .date-sheet-footer {
+            padding: 10px 16px 0;
+            display: flex; gap: 8px;
+        }
+        .date-clear-btn {
+            padding: 12px; border: 1.5px solid var(--border-light);
+            border-radius: 11px; background: none; color: var(--text-muted);
+            font-size: 0.82rem; font-weight: 600; cursor: pointer; font-family: inherit;
+            transition: all 0.15s;
+        }
+        .date-clear-btn:active { background: #fef2f2; border-color: #fecaca; color: #dc2626; }
+        /* 날짜 없는 카드의 달력 아이콘 */
+        .no-date-chip {
+            display: inline-flex; align-items: center; gap: 4px;
+            font-size: 0.72rem; color: var(--text-muted);
+            border: 1px dashed var(--border-light); border-radius: 6px;
+            padding: 2px 7px; cursor: pointer;
+            transition: all 0.15s;
+        }
+        .no-date-chip:active { border-color: var(--accent); color: var(--accent); }
+        /* D-day 뱃지 클릭 가능 */
+        .dday-badge { cursor: pointer; }
+        .dday-badge:active { opacity: 0.75; }
+        /* 체크리스트 헤더 날짜 탭 */
+        .cl-subtitle { cursor: pointer; }
+        .cl-subtitle:active { opacity: 0.7; }
+
         /* ===== 정렬 칩 ===== */
         .sort-chip {
             flex-shrink: 0; padding: 5px 11px; border-radius: 20px;
@@ -1280,20 +1352,6 @@
             border-left-color: var(--success);
         }
 
-        /* ===== 사진 첨부 ===== */
-        .cl-photo-wrap {
-            padding: 0 12px 12px 52px; display: flex; gap: 8px; flex-wrap: wrap;
-        }
-        .cl-photo-thumb {
-            width: 64px; height: 64px; border-radius: 8px; object-fit: cover;
-            border: 1px solid var(--border-light); cursor: pointer;
-        }
-        .cl-photo-add {
-            width: 64px; height: 64px; border-radius: 8px;
-            border: 1.5px dashed var(--border-light); background: var(--bg-subtle);
-            display: flex; align-items: center; justify-content: center;
-            color: var(--text-muted); cursor: pointer; flex-shrink: 0;
-        }
 
         /* ===== 다크모드 ===== */
         @media (prefers-color-scheme: dark) {
@@ -2053,6 +2111,126 @@
             }
 
             // ════════════════════════════════════════════════════════════
+            // 마감일 설정·수정
+            // ════════════════════════════════════════════════════════════
+            openDatePicker(workflowId) {
+                const wf = this.allData.workflows.find(w => w.id === workflowId);
+                if (!wf) return;
+
+                // 현재 날짜를 ISO(YYYY-MM-DD)로 변환
+                const currentIso = this._dateToIso(wf.date || wf.deadline) || '';
+
+                const ov = document.createElement('div');
+                ov.className = 'action-sheet-overlay';
+                ov.style.alignItems = 'flex-end';
+                ov.innerHTML = `
+                    <div class="date-sheet">
+                        <div class="date-sheet-header">
+                            <div>
+                                <div class="date-sheet-title">마감일 설정</div>
+                                <div class="date-sheet-current">${wf.title}</div>
+                            </div>
+                            <button class="date-sheet-close" id="dpClose">✕</button>
+                        </div>
+
+                        <!-- 바로가기 버튼 -->
+                        <div class="date-shortcuts">
+                            <button class="date-shortcut" data-offset="0">오늘</button>
+                            <button class="date-shortcut" data-offset="1">내일</button>
+                            <button class="date-shortcut" data-offset="7">1주 후</button>
+                            <button class="date-shortcut" data-offset="30">한달 후</button>
+                        </div>
+
+                        <!-- 직접 선택 -->
+                        <div class="date-input-wrap">
+                            <div class="date-input-label">직접 선택</div>
+                            <input type="date" class="date-native-input" id="dpInput" value="${currentIso}">
+                        </div>
+
+                        <!-- 하단 버튼 -->
+                        <div class="date-sheet-footer">
+                            <button class="date-clear-btn" id="dpClear" style="flex:0 0 auto;">마감일 없음</button>
+                            <button class="btn btn-primary" id="dpConfirm" style="flex:1;justify-content:center;">확인</button>
+                        </div>
+                    </div>`;
+
+                // 바로가기 클릭
+                ov.querySelectorAll('.date-shortcut').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const d = new Date();
+                        d.setDate(d.getDate() + Number(btn.dataset.offset));
+                        ov.querySelector('#dpInput').value = d.toISOString().slice(0, 10);
+                    });
+                });
+
+                // 확인
+                ov.querySelector('#dpConfirm').addEventListener('click', () => {
+                    const val = ov.querySelector('#dpInput').value;
+                    ov.remove();
+                    if (val) this._applyDeadline(workflowId, val);
+                    else this.showToast('info', 'ℹ️', '날짜를 선택해 주세요');
+                });
+
+                // 마감일 없음
+                ov.querySelector('#dpClear').addEventListener('click', () => {
+                    ov.remove();
+                    this._clearDeadline(workflowId);
+                });
+
+                ov.querySelector('#dpClose').addEventListener('click', () => ov.remove());
+                ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+                document.body.appendChild(ov);
+            }
+
+            // ISO(YYYY-MM-DD) → 한국식(YYYY. M. D.) 변환
+            _isoToKr(iso) {
+                if (!iso) return '';
+                const [y, m, d] = iso.split('-');
+                return `${y}. ${Number(m)}. ${Number(d)}.`;
+            }
+
+            // 한국식 날짜·ISO 등 다양한 형식 → ISO(YYYY-MM-DD)
+            _dateToIso(dateStr) {
+                if (!dateStr) return '';
+                // 이미 ISO 형식
+                if (/^\d{4}-\d{2}-\d{2}/.test(dateStr)) return dateStr.slice(0, 10);
+                // 한국식: "2026. 5. 7." 또는 "2026.5.7"
+                const cleaned = String(dateStr).replace(/\.\s*/g, '-').replace(/-+$/, '').trim();
+                const parts = cleaned.split('-').map(Number);
+                if (parts.length >= 3 && !isNaN(parts[0])) {
+                    return `${parts[0]}-${String(parts[1]).padStart(2,'0')}-${String(parts[2]).padStart(2,'0')}`;
+                }
+                return '';
+            }
+
+            async _applyDeadline(workflowId, isoDate) {
+                const wf = this.allData.workflows.find(w => w.id === workflowId);
+                if (!wf) return;
+                wf.date = this._isoToKr(isoDate);
+                wf.deadline = isoDate;
+                await this.saveWorkflow(wf);
+                this.displayWorkflows();
+                this._updateClHeader(wf); // 체크리스트 헤더도 갱신
+                this.showToast('success', '✅', `마감일: ${wf.date}`);
+                // 마감일 알림 재확인
+                setTimeout(() => this._checkDeadlineAlerts(), 300);
+            }
+
+            async _clearDeadline(workflowId) {
+                const wf = this.allData.workflows.find(w => w.id === workflowId);
+                if (!wf) return;
+                wf.date = '';
+                wf.deadline = '';
+                await this.saveWorkflow(wf);
+                this.displayWorkflows();
+                this._updateClHeader(wf);
+                this.showToast('success', '✅', '마감일이 삭제되었습니다');
+                // 마감 배너 재확인
+                setTimeout(() => this._checkDeadlineAlerts(), 300);
+            }
+            // ════════════════════════════════════════════════════════════
+
+            // ════════════════════════════════════════════════════════════
             // ① 마감일 알림
             // ════════════════════════════════════════════════════════════
             async _checkDeadlineAlerts() {
@@ -2271,61 +2449,6 @@
             // ════════════════════════════════════════════════════════════
             // ⑨ 사진 첨부
             // ════════════════════════════════════════════════════════════
-            async _addPhoto(workflowId, itemIndex) {
-                const input = document.createElement('input');
-                input.type = 'file'; input.accept = 'image/*'; input.capture = 'environment';
-                input.onchange = async e => {
-                    const file = e.target.files[0];
-                    if (!file) return;
-                    const reader = new FileReader();
-                    reader.onload = async ev => {
-                        const wf = this.allData.workflows.find(w => w.id === workflowId);
-                        if (!wf || !wf.checklist[itemIndex]) return;
-                        if (!wf.checklist[itemIndex].photos) wf.checklist[itemIndex].photos = [];
-                        wf.checklist[itemIndex].photos.push(ev.target.result);
-                        await this.saveWorkflow(wf);
-                        this.showChecklist(workflowId); // 재렌더
-                    };
-                    reader.readAsDataURL(file);
-                };
-                input.click();
-            }
-
-            _viewPhoto(src, workflowId, itemIndex, photoIndex) {
-                const ov = document.createElement('div');
-                ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:4000;display:flex;flex-direction:column;align-items:center;justify-content:center;';
-                ov.innerHTML = `
-                    <img src="${src}" style="max-width:95%;max-height:80vh;border-radius:8px;object-fit:contain;">
-                    <div style="position:absolute;top:0;left:0;right:0;display:flex;justify-content:space-between;align-items:center;padding:14px 16px;">
-                        <button id="photoDeleteBtn" style="display:flex;align-items:center;gap:6px;background:rgba(239,68,68,0.8);border:none;border-radius:8px;color:white;padding:8px 14px;font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
-                            삭제
-                        </button>
-                        <button id="photoCloseBtn" style="background:rgba(255,255,255,0.15);border:none;border-radius:50%;width:36px;height:36px;color:white;font-size:1.1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;">✕</button>
-                    </div>`;
-
-                ov.querySelector('#photoCloseBtn').addEventListener('click', () => ov.remove());
-                ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
-
-                const deleteBtn = ov.querySelector('#photoDeleteBtn');
-                if (workflowId !== undefined && itemIndex !== undefined && photoIndex !== undefined) {
-                    deleteBtn.addEventListener('click', () => {
-                        if (!confirm('이 사진을 삭제하시겠습니까?')) return;
-                        const wf = this.allData.workflows.find(w => w.id === workflowId);
-                        if (wf?.checklist?.[itemIndex]?.photos) {
-                            wf.checklist[itemIndex].photos.splice(photoIndex, 1);
-                            this.saveWorkflow(wf);
-                            this.showChecklist(workflowId);
-                        }
-                        ov.remove();
-                        this.showToast('success', '✅', '사진이 삭제되었습니다');
-                    });
-                } else {
-                    deleteBtn.style.display = 'none';
-                }
-
-                document.body.appendChild(ov);
-            }
 
             // ── 공유 기능 ────────────────────────────────────────────────
 
@@ -2811,8 +2934,18 @@
                     const isNew = this.lastImportedWorkflowIds.includes(workflow.id);
                     const cardClass = isNew ? 'workflow-card new-workflow' : 'workflow-card';
                     const newBadge = isNew ? '<span class="new-badge">NEW</span>' : '';
-                    const dday = this._ddayBadge(workflow.date, progress);
                     const isDone = progress >= 100;
+                    const hasDate = !!(workflow.date || workflow.deadline);
+
+                    // D-day 뱃지 또는 달력 아이콘 (탭하면 날짜 피커 열림)
+                    const ddayBadge = hasDate
+                        ? this._ddayBadge(workflow.date, progress).replace(
+                            'class="dday-badge',
+                            `class="dday-badge" onclick="event.stopPropagation();app.openDatePicker(${workflow.id})" title="마감일 수정"`)
+                        : `<span class="no-date-chip" onclick="event.stopPropagation();app.openDatePicker(${workflow.id})" title="마감일 설정">
+                              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                              마감일
+                           </span>`;
 
                     // 검색어 하이라이트
                     const titleHtml = q
@@ -2826,7 +2959,7 @@
                             <div class="workflow-card-top">
                                 <div class="workflow-title">${newBadge}${titleHtml}</div>
                                 <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
-                                    ${dday}
+                                    ${ddayBadge}
                                     <button class="workflow-delete-btn" onclick="event.stopPropagation();app.deleteWorkflow(${workflow.id})" title="삭제">${this.ic.trash(14)}</button>
                                 </div>
                             </div>
@@ -2941,7 +3074,7 @@
                 el.addEventListener('touchend', onEnd, { passive: true });
             }
 
-            // 체크리스트 진행률 헤더 갱신
+            // 체크리스트 진행률 헤더 갱신 (날짜 포함)
             _updateClHeader(workflow) {
                 if (!workflow) return;
                 const total = workflow.checklist ? workflow.checklist.length : 0;
@@ -2949,7 +3082,15 @@
                 const pct = total > 0 ? Math.round(done / total * 100) : 0;
                 const sub = document.getElementById('clSubtitle');
                 const fill = document.getElementById('clProgressFill');
-                if (sub) sub.textContent = `${done} / ${total} 완료 · ${pct}%`;
+                const dateStr = workflow.date || workflow.deadline || '';
+                const d = this._calcDday(dateStr);
+                const ddayTxt = d !== null
+                    ? (d === 0 ? ' · ⚠️ 오늘 마감' : d < 0 ? ` · D+${Math.abs(d)}` : ` · D-${d}`)
+                    : (dateStr ? ` · ${dateStr}` : ' · 마감일 없음 ←탭하여 설정');
+                if (sub) {
+                    sub.textContent = `${done} / ${total} 완료 · ${pct}%${ddayTxt}`;
+                    sub.title = '탭하여 마감일 수정';
+                }
                 if (fill) { fill.style.width = pct + '%'; fill.className = 'cl-progress-fill' + (pct >= 100 ? ' done' : ''); }
             }
 
@@ -2965,11 +3106,13 @@
                 const title = document.getElementById('checklistModalTitle');
                 if (title) {
                     title.textContent = workflow.title || '체크리스트';
-                    // 제목 클릭 → 전체 제목 팝업
                     title.style.cursor = 'pointer';
                     title.onclick = () => this._showTitlePopup(workflow.title || '');
                 }
                 this._updateClHeader(workflow);
+                // 부제목 탭 → 마감일 수정
+                const sub = document.getElementById('clSubtitle');
+                if (sub) sub.onclick = () => this.openDatePicker(workflowId);
 
                 const body = document.getElementById('checklistModalBody');
                 if (!body) return;
@@ -2998,21 +3141,14 @@
                                </button>`
                             : '';
 
-                        // 사진 썸네일
-                    const photosHtml = (item.photos && item.photos.length > 0)
-                        ? `<div class="cl-photo-wrap">${item.photos.map((p,pi) => `<img class="cl-photo-thumb" src="${p}" onclick="app._viewPhoto('${p}',${workflowId},${index},${pi})" title="탭: 크게보기 / 삭제 가능" />`).join('')}<div class="cl-photo-add" onclick="event.stopPropagation();app._addPhoto(${workflowId},${index})" title="사진 추가">${this.ic.download(18)}</div></div>`
-                        : '';
-
-                    return `
+                        return `
                             <div class="cl-card ${isCompleted ? 'completed' : ''} ${isSkipped ? 'skipped' : ''}" id="cl-card-${index}">
                                 <div class="cl-card-row">
                                     ${checkWrap}
                                     <span class="cl-num">${num}</span>
                                     <span class="cl-text">${this.escapeHtml(item.text || '')}</span>
                                     ${aiBtn}
-                                    ${!isSkipped ? `<button class="cl-ai-btn" style="background:rgba(37,99,235,0.07);border-color:rgba(37,99,235,0.15);color:var(--accent);" onclick="event.stopPropagation();app._addPhoto(${workflowId},${index})" title="사진 첨부"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></button>` : ''}
                                 </div>
-                                ${photosHtml}
                                 ${skipInfo}
                             </div>`;
                     }).join('');
