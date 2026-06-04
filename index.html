@@ -3881,7 +3881,8 @@
                 this.displayWorkflows();
 
                 // 진동 피드백 (체크 시만)
-                if (item.completed && navigator.vibrate) navigator.vibrate(18);
+                // 진동 피드백: Android에서만 작동 (iOS는 Vibration API 미지원)
+                if (item.completed && navigator.vibrate) navigator.vibrate(60);
 
                 // 카드만 실시간 업데이트 (전체 재렌더 없이)
                 const card = document.getElementById(`cl-card-${itemIndex}`);
@@ -5093,27 +5094,65 @@ ${deadlineInfo ? `- 마감일 고려: ${deadlineInfo.includes('오늘 마감') ?
 
             async testApiConnection() {
                 const provider = this.allData.provider;
-                let apiKey;
-                if (provider === 'gemini') {
-                    apiKey = this.allData.geminiApiKey;
-                } else if (provider === 'chatgpt') {
-                    apiKey = this.allData.chatgptApiKey;
-                } else if (provider === 'claude') {
-                    apiKey = this.allData.claudeApiKey;
+
+                // ✅ 수정: 입력창에서 먼저 키 읽기 (저장 전에도 테스트 가능)
+                const inputEl = document.getElementById(provider + 'ApiKeyInput');
+                let apiKey = inputEl?.value?.trim();
+
+                // 입력창이 마스크 텍스트(설정되어 있습니다)면 저장된 키 사용
+                if (!apiKey || apiKey.includes('설정되어') || apiKey.includes('✅')) {
+                    apiKey = provider === 'gemini' ? this.allData.geminiApiKey
+                           : provider === 'chatgpt' ? this.allData.chatgptApiKey
+                           : provider === 'claude' ? this.allData.claudeApiKey : '';
                 }
 
                 if (!apiKey) {
-                    this.showToast('error', '⚠️', 'API 키를 먼저 설정하세요');
+                    this.showToast('error', '⚠️', 'API 키를 먼저 입력하세요');
+                    if (inputEl) inputEl.focus();
                     return;
                 }
 
-                this.showToast('info', '⏳', 'API 연결 테스트 중...');
+                // 테스트 중 버튼 비활성화
+                const testBtn = document.querySelector('[onclick="app.testApiConnection()"]');
+                const origText = testBtn?.textContent;
+                if (testBtn) { testBtn.disabled = true; testBtn.textContent = '테스트 중...'; }
+
+                const statusEl = document.getElementById(provider + 'ApiKeyStatus');
+                if (statusEl) { statusEl.textContent = 'AI 서버에 연결 중...'; statusEl.style.color = 'var(--text-muted)'; }
 
                 try {
-                    await this.callAI('테스트');
-                    this.showToast('success', '✅', 'API 연결 성공');
+                    // 입력창의 키로 직접 테스트 호출
+                    const model = provider === 'gemini' ? (this.allData.selectedModel?.gemini || 'gemini-3.1-flash-lite')
+                                : provider === 'chatgpt' ? (this.allData.selectedModel?.chatgpt || 'gpt-4o-mini')
+                                : (this.allData.selectedModel?.claude || 'claude-3-5-haiku-20241022');
+
+                    if (provider === 'gemini') {
+                        await this.callGemini('안녕', model, apiKey, 0, true);
+                    } else if (provider === 'chatgpt') {
+                        await this.callChatGPT('안녕', model, apiKey, true);
+                    } else if (provider === 'claude') {
+                        await this.callClaude('안녕', model, apiKey, true);
+                    }
+
+                    // 성공 시 시각적 피드백
+                    if (statusEl) {
+                        statusEl.textContent = '✅ 연결 성공! [저장] 버튼을 눌러 적용하세요.';
+                        statusEl.style.color = 'var(--success)';
+                    }
+                    if (inputEl) {
+                        inputEl.style.borderColor = 'var(--success)';
+                        setTimeout(() => { inputEl.style.borderColor = ''; }, 3000);
+                    }
+                    this.showToast('success', '✅', `${provider === 'gemini' ? 'Gemini' : provider === 'chatgpt' ? 'ChatGPT' : 'Claude'} 연결 성공! 저장 버튼을 눌러주세요`);
+
                 } catch (error) {
-                    this.showToast('error', '❌', 'API 연결 실패: ' + error.message);
+                    if (statusEl) {
+                        statusEl.textContent = '❌ 연결 실패 — API 키를 확인하세요';
+                        statusEl.style.color = '#ef4444';
+                    }
+                    this.showToast('error', '❌', '연결 실패: ' + error.message);
+                } finally {
+                    if (testBtn) { testBtn.disabled = false; testBtn.textContent = origText || '연결 테스트'; }
                 }
             }
 
