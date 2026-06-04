@@ -1202,6 +1202,126 @@
         .picker-meta { font-size: 0.73rem; color: var(--text-muted); margin-top: 2px; }
         .picker-progress-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
 
+        /* ===== 마감 임박 배너 ===== */
+        .deadline-banner {
+            background: linear-gradient(135deg, #dc2626, #ef4444);
+            color: white; padding: 10px 16px;
+            display: flex; align-items: center; gap: 10px;
+            font-size: 0.82rem; font-weight: 600;
+            animation: bannerIn 0.3s ease; cursor: pointer;
+        }
+        @keyframes bannerIn { from{transform:translateY(-100%)} to{transform:translateY(0)} }
+        .deadline-banner-text { flex: 1; line-height: 1.45; }
+        .deadline-banner-close {
+            background: rgba(255,255,255,0.2); border: none; border-radius: 6px;
+            color: white; width: 26px; height: 26px; cursor: pointer;
+            display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+            font-size: 0.85rem;
+        }
+
+        /* ===== 오프라인 배너 ===== */
+        .offline-banner {
+            background: #374151; color: white;
+            padding: 8px 16px; font-size: 0.78rem; font-weight: 600;
+            display: flex; align-items: center; gap: 8px;
+            justify-content: center; text-align: center;
+        }
+        .offline-dot { width: 7px; height: 7px; border-radius: 50%; background: #ef4444; flex-shrink: 0; }
+
+        /* ===== 정렬 칩 ===== */
+        .sort-chip {
+            flex-shrink: 0; padding: 5px 11px; border-radius: 20px;
+            border: 1px solid var(--border-light); background: var(--white);
+            color: var(--text-gray); font-size: 0.78rem; font-weight: 600;
+            cursor: pointer; display: flex; align-items: center; gap: 5px;
+            font-family: inherit; white-space: nowrap;
+        }
+        .sort-chip.active { background: var(--primary-dark); border-color: var(--primary-dark); color: white; }
+
+        /* ===== PWA 설치 배너 ===== */
+        .pwa-banner {
+            background: var(--primary-dark); color: white;
+            padding: 12px 16px; display: flex; align-items: center; gap: 12px;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+        }
+        .pwa-banner-icon { font-size: 1.4rem; flex-shrink: 0; }
+        .pwa-banner-text { flex: 1; font-size: 0.8rem; line-height: 1.4; }
+        .pwa-banner-text strong { display: block; font-size: 0.85rem; margin-bottom: 2px; }
+        .pwa-banner-btn {
+            background: var(--accent); border: none; border-radius: 7px;
+            color: white; font-size: 0.75rem; font-weight: 700;
+            padding: 7px 11px; cursor: pointer; flex-shrink: 0; font-family: inherit;
+        }
+        .pwa-banner-close {
+            background: rgba(255,255,255,0.1); border: none; border-radius: 6px;
+            color: rgba(255,255,255,0.6); width: 24px; height: 24px;
+            cursor: pointer; display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0; font-size: 0.85rem;
+        }
+
+        /* ===== 음성 입력 버튼 ===== */
+        .voice-btn {
+            width: 32px; height: 32px; border-radius: 8px; flex-shrink: 0;
+            background: none; border: 1px solid var(--border-light);
+            color: var(--text-muted); cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            transition: all 0.15s; touch-action: manipulation;
+        }
+        .voice-btn.recording {
+            background: rgba(239,68,68,0.1); border-color: #ef4444; color: #ef4444;
+            animation: voicePulse 1s infinite;
+        }
+        @keyframes voicePulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+
+        /* ===== 스와이프 완료 ===== */
+        .cl-card { touch-action: pan-y; }
+        .cl-card.swipe-done {
+            background: linear-gradient(to right, #f0fdf4 0%, white 50%);
+            border-left-color: var(--success);
+        }
+
+        /* ===== 사진 첨부 ===== */
+        .cl-photo-wrap {
+            padding: 0 12px 12px 52px; display: flex; gap: 8px; flex-wrap: wrap;
+        }
+        .cl-photo-thumb {
+            width: 64px; height: 64px; border-radius: 8px; object-fit: cover;
+            border: 1px solid var(--border-light); cursor: pointer;
+        }
+        .cl-photo-add {
+            width: 64px; height: 64px; border-radius: 8px;
+            border: 1.5px dashed var(--border-light); background: var(--bg-subtle);
+            display: flex; align-items: center; justify-content: center;
+            color: var(--text-muted); cursor: pointer; flex-shrink: 0;
+        }
+
+        /* ===== 다크모드 ===== */
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg-light: #0f1117;
+                --bg-subtle: #1a2035;
+                --white: #1e2d47;
+                --text-dark: #e2e8f0;
+                --text-gray: #94a3b8;
+                --text-muted: #64748b;
+                --border-light: #1e2d47;
+                --border-subtle: #1a2333;
+            }
+            .header { border-bottom-color: rgba(255,255,255,0.05); }
+            .workflow-card { background: #1a2035; border-color: #1e2d47; }
+            .modal-content, .ai-chat-input { background: #1a2035 !important; border-color: #1e2d47; }
+            .ai-message .message-content { background: #1e2d47; border-color: #253352; }
+            .ag-header, .ag-body, .ag-footer { background: #1a2035; }
+            .checklist-screen, .cl-body { background: #0f1117; }
+            .cl-card { background: #1a2035; }
+            .cl-card.completed { background: linear-gradient(to right,#052e16 0%,#1a2035 55%); }
+            .action-sheet, .header-dropdown { background: #1a2035; }
+            .picker-item { border-color: #253352; }
+            .search-input-wrap { background: rgba(255,255,255,0.06); }
+            #aiPartnerModal .modal-content { background: #0f1117 !important; }
+            .ai-chat-box { background: #0f1117; }
+        }
+
         /* ===== 빈 화면 개선 ===== */
         .empty-guide {
             display: flex; flex-direction: column; align-items: center;
@@ -1305,8 +1425,34 @@
         </div>
     </div>
 
+    <!-- PWA 설치 배너 (조건부 표시) -->
+    <div id="pwaBanner" style="display:none;" class="pwa-banner">
+        <div class="pwa-banner-icon">📱</div>
+        <div class="pwa-banner-text">
+            <strong>홈 화면에 추가하기</strong>
+            앱처럼 빠르게 실행할 수 있습니다
+        </div>
+        <button class="pwa-banner-btn" id="pwaInstallBtn">추가</button>
+        <button class="pwa-banner-close" onclick="app.dismissPwaBanner()">✕</button>
+    </div>
+
+    <!-- 오프라인 배너 (조건부 표시) -->
+    <div id="offlineBanner" style="display:none;" class="offline-banner">
+        <div class="offline-dot"></div>
+        오프라인 상태 — AI 기능을 사용할 수 없습니다
+    </div>
+
+    <!-- 마감 임박 배너 (조건부 표시) -->
+    <div id="deadlineBanner" style="display:none;"></div>
+
     <!-- 메인 콘텐츠 -->
     <div class="main-content">
+        <!-- 정렬 옵션 -->
+        <div style="display:flex;gap:6px;margin-bottom:12px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px;" id="sortRow">
+            <button class="sort-chip active" onclick="app.setSortMode('import',this)">최근 가져온순</button>
+            <button class="sort-chip" onclick="app.setSortMode('dday',this)">마감 임박순</button>
+            <button class="sort-chip" onclick="app.setSortMode('progress',this)">진행률순</button>
+        </div>
         <div id="workflowList" class="workflow-list"></div>
     </div>
 
@@ -1553,7 +1699,10 @@
                     <div style="display:flex;flex-direction:column;">
                         <textarea id="aiChatInput" placeholder="업무에 대해 질문하세요..."></textarea>
                     </div>
-                    <div class="ai-chat-footer" style="border-top:1px solid var(--border-subtle);padding:6px 10px 8px;display:flex;justify-content:flex-end;">
+                    <div class="ai-chat-footer" style="border-top:1px solid var(--border-subtle);padding:6px 10px 8px;display:flex;align-items:center;justify-content:space-between;gap:8px;">
+                        <button class="voice-btn" id="voiceBtn" title="음성 입력">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+                        </button>
                         <button class="chat-send-btn" id="aiChatSendBtn">
                             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
                             전송
@@ -1809,10 +1958,18 @@
                     await this.loadData();
                     await this.loadApiKeys();
                     this.aiUsageStats = this.loadAIStats();
-                    this.allData.modelMode = 'auto'; // 모바일은 항상 자동 모드
+                    this.allData.modelMode = 'auto';
+                    this._sortMode = localStorage.getItem('sortMode') || 'import';
                     this.displayWorkflows();
                     this.updateApiStatusBadge();
                     this.initAiPartnerUI();
+                    this._setupOfflineDetection();
+                    this._setupPWAInstall();
+                    this._initVoiceInput();
+                    setTimeout(() => {
+                        this._checkDeadlineAlerts();
+                        this._restoreLastWorkflow();
+                    }, 700);
                     // 외부 클릭 시 헤더 드롭다운 닫기
                     document.addEventListener('click', (e) => {
                         const dd = document.getElementById('headerDropdown');
@@ -1893,6 +2050,245 @@
                 if (claudeInput) {
                     claudeInput.value = this.allData.claudeApiKey ? '✅ API Key가 설정되어 있습니다.' : '';
                 }
+            }
+
+            // ════════════════════════════════════════════════════════════
+            // ① 마감일 알림
+            // ════════════════════════════════════════════════════════════
+            async _checkDeadlineAlerts() {
+                const urgent = this.allData.workflows.filter(wf => {
+                    if (this.calculateProgress(wf) >= 100) return false;
+                    const d = this._calcDday(wf.date || wf.deadline);
+                    return d !== null && d >= 0 && d <= 3;
+                }).sort((a,b) => {
+                    const da = this._calcDday(a.date||a.deadline) ?? 99;
+                    const db = this._calcDday(b.date||b.deadline) ?? 99;
+                    return da - db;
+                });
+                if (urgent.length === 0) return;
+
+                // 인앱 배너
+                const banner = document.getElementById('deadlineBanner');
+                if (banner) {
+                    const item = urgent[0];
+                    const d = this._calcDday(item.date || item.deadline);
+                    const label = d === 0 ? '⚠️ 오늘 마감!' : `D-${d}`;
+                    const more = urgent.length > 1 ? ` 외 ${urgent.length-1}개` : '';
+                    banner.style.display = 'block';
+                    banner.innerHTML = `
+                        <div class="deadline-banner" onclick="app.showChecklist(${item.id})">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                            <div class="deadline-banner-text"><strong>${label}${more}</strong> ${this.escapeHtml(item.title)}</div>
+                            <button class="deadline-banner-close" onclick="event.stopPropagation();document.getElementById('deadlineBanner').style.display='none'">✕</button>
+                        </div>`;
+                }
+
+                // 브라우저 알림 요청 및 전송
+                if ('Notification' in window && Notification.permission === 'default') {
+                    const granted = await Notification.requestPermission();
+                    if (granted === 'granted') this._sendDeadlineNotifications(urgent);
+                } else if (Notification.permission === 'granted') {
+                    this._sendDeadlineNotifications(urgent);
+                }
+            }
+
+            _sendDeadlineNotifications(urgent) {
+                const sent = JSON.parse(localStorage.getItem('notifSent') || '{}');
+                const today = new Date().toISOString().slice(0,10);
+                urgent.forEach(wf => {
+                    const key = `${wf.id}-${today}`;
+                    if (sent[key]) return;
+                    const d = this._calcDday(wf.date || wf.deadline);
+                    const label = d === 0 ? '오늘 마감!' : `D-${d}`;
+                    new Notification(`⚠️ 마감 임박 — ${label}`, {
+                        body: wf.title,
+                        icon: './icon.ico',
+                        tag: `deadline-${wf.id}`
+                    });
+                    sent[key] = true;
+                });
+                localStorage.setItem('notifSent', JSON.stringify(sent));
+            }
+
+            // ════════════════════════════════════════════════════════════
+            // ② 마지막 업무 복원
+            // ════════════════════════════════════════════════════════════
+            _restoreLastWorkflow() {
+                const lastId = localStorage.getItem('lastOpenedWorkflow');
+                if (!lastId) return;
+                const wf = this.allData.workflows.find(w => String(w.id) === String(lastId));
+                if (wf) {
+                    // 복원 배너 표시
+                    const container = document.getElementById('workflowList');
+                    if (!container) return;
+                    const restore = document.createElement('div');
+                    restore.style.cssText = 'display:flex;align-items:center;justify-content:space-between;background:rgba(37,99,235,0.07);border:1px solid rgba(37,99,235,0.15);border-radius:10px;padding:11px 14px;margin-bottom:10px;font-size:0.82rem;gap:10px;';
+                    restore.innerHTML = `
+                        <span style="color:var(--text-dark);font-weight:500;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">🔄 마지막 업무: <strong>${this.escapeHtml(wf.title)}</strong></span>
+                        <button onclick="app.showChecklist(${wf.id});this.closest('div').remove();" style="background:var(--accent);color:white;border:none;border-radius:7px;padding:6px 11px;font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit;flex-shrink:0;">이어보기</button>
+                        <button onclick="this.closest('div').remove();localStorage.removeItem('lastOpenedWorkflow')" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:1rem;flex-shrink:0;">✕</button>`;
+                    container.insertBefore(restore, container.firstChild);
+                }
+            }
+
+            // ════════════════════════════════════════════════════════════
+            // ③ 오프라인 감지
+            // ════════════════════════════════════════════════════════════
+            _setupOfflineDetection() {
+                const banner = document.getElementById('offlineBanner');
+                const update = () => {
+                    if (!banner) return;
+                    const online = navigator.onLine;
+                    banner.style.display = online ? 'none' : 'flex';
+                    // AI 버튼 비활성화
+                    const fab = document.getElementById('aiFab');
+                    if (fab) fab.style.opacity = online ? '' : '0.4';
+                };
+                window.addEventListener('online', () => { update(); this.showToast('success','✅','인터넷에 연결되었습니다'); });
+                window.addEventListener('offline', () => { update(); this.showToast('info','⚠️','오프라인 상태 — AI를 사용할 수 없습니다'); });
+                update();
+            }
+
+            // ════════════════════════════════════════════════════════════
+            // ④ D-day 정렬
+            // ════════════════════════════════════════════════════════════
+            setSortMode(mode, btn) {
+                this._sortMode = mode;
+                localStorage.setItem('sortMode', mode);
+                document.querySelectorAll('.sort-chip').forEach(b => b.classList.remove('active'));
+                if (btn) btn.classList.add('active');
+                this.displayWorkflows();
+            }
+
+            // ════════════════════════════════════════════════════════════
+            // ⑤ 음성 입력
+            // ════════════════════════════════════════════════════════════
+            _initVoiceInput() {
+                const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+                const btn = document.getElementById('voiceBtn');
+                if (!SR || !btn) { if (btn) btn.style.display = 'none'; return; }
+
+                const rec = new SR();
+                rec.lang = 'ko-KR';
+                rec.continuous = false;
+                rec.interimResults = true;
+
+                let recording = false;
+                btn.addEventListener('click', () => {
+                    if (!recording) { rec.start(); }
+                    else { rec.stop(); }
+                });
+
+                rec.onstart = () => { recording = true; btn.classList.add('recording'); this.showToast('info','🎙️','듣고 있습니다...'); };
+                rec.onend = () => { recording = false; btn.classList.remove('recording'); };
+                rec.onerror = () => { recording = false; btn.classList.remove('recording'); this.showToast('error','❌','음성 인식 실패'); };
+                rec.onresult = e => {
+                    const input = document.getElementById('aiChatInput');
+                    if (!input) return;
+                    const transcript = Array.from(e.results).map(r => r[0].transcript).join('');
+                    input.value = transcript;
+                    // auto-resize
+                    if (this._resetInputHeight) this._resetInputHeight();
+                    input.dispatchEvent(new Event('input'));
+                };
+            }
+
+            // ════════════════════════════════════════════════════════════
+            // ⑥ PWA 설치 안내
+            // ════════════════════════════════════════════════════════════
+            _setupPWAInstall() {
+                if (localStorage.getItem('pwaDismissed')) return;
+                let deferredPrompt = null;
+                window.addEventListener('beforeinstallprompt', e => {
+                    e.preventDefault();
+                    deferredPrompt = e;
+                    const banner = document.getElementById('pwaBanner');
+                    if (banner) banner.style.display = 'flex';
+                    const installBtn = document.getElementById('pwaInstallBtn');
+                    if (installBtn) {
+                        installBtn.addEventListener('click', async () => {
+                            if (deferredPrompt) {
+                                deferredPrompt.prompt();
+                                const result = await deferredPrompt.userChoice;
+                                if (result.outcome === 'accepted') {
+                                    this.showToast('success','✅','홈 화면에 추가되었습니다!');
+                                }
+                                deferredPrompt = null;
+                            }
+                            document.getElementById('pwaBanner').style.display = 'none';
+                        });
+                    }
+                });
+            }
+
+            dismissPwaBanner() {
+                const banner = document.getElementById('pwaBanner');
+                if (banner) banner.style.display = 'none';
+                localStorage.setItem('pwaDismissed', '1');
+            }
+
+            // ════════════════════════════════════════════════════════════
+            // ⑧ 스와이프 완료 (체크리스트 항목)
+            // ════════════════════════════════════════════════════════════
+            _initSwipeToComplete(workflowId) {
+                // showChecklist 후 카드에 제스처 부착
+                setTimeout(() => {
+                    document.querySelectorAll('.cl-card:not(.skipped)').forEach((card, idx) => {
+                        let startX = 0, startY = 0, swiping = false;
+                        card.addEventListener('touchstart', e => {
+                            startX = e.touches[0].clientX;
+                            startY = e.touches[0].clientY;
+                            swiping = false;
+                        }, { passive: true });
+                        card.addEventListener('touchmove', e => {
+                            const dx = e.touches[0].clientX - startX;
+                            const dy = Math.abs(e.touches[0].clientY - startY);
+                            if (dx > 20 && dy < 40) { swiping = true; card.style.transform = `translateX(${Math.min(dx*0.4, 40)}px)`; }
+                        }, { passive: true });
+                        card.addEventListener('touchend', e => {
+                            const dx = e.changedTouches[0].clientX - startX;
+                            card.style.transition = 'transform 0.18s ease';
+                            card.style.transform = '';
+                            if (swiping && dx > 60 && !card.classList.contains('completed')) {
+                                card.classList.add('swipe-done');
+                                setTimeout(() => this.toggleChecklistItem(workflowId, idx), 150);
+                            }
+                            setTimeout(() => { card.style.transition = ''; }, 200);
+                            swiping = false;
+                        }, { passive: true });
+                    });
+                }, 300);
+            }
+
+            // ════════════════════════════════════════════════════════════
+            // ⑨ 사진 첨부
+            // ════════════════════════════════════════════════════════════
+            async _addPhoto(workflowId, itemIndex) {
+                const input = document.createElement('input');
+                input.type = 'file'; input.accept = 'image/*'; input.capture = 'environment';
+                input.onchange = async e => {
+                    const file = e.target.files[0];
+                    if (!file) return;
+                    const reader = new FileReader();
+                    reader.onload = async ev => {
+                        const wf = this.allData.workflows.find(w => w.id === workflowId);
+                        if (!wf || !wf.checklist[itemIndex]) return;
+                        if (!wf.checklist[itemIndex].photos) wf.checklist[itemIndex].photos = [];
+                        wf.checklist[itemIndex].photos.push(ev.target.result);
+                        await this.saveWorkflow(wf);
+                        this.showChecklist(workflowId); // 재렌더
+                    };
+                    reader.readAsDataURL(file);
+                };
+                input.click();
+            }
+
+            _viewPhoto(src) {
+                const ov = document.createElement('div');
+                ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:4000;display:flex;align-items:center;justify-content:center;';
+                ov.innerHTML = `<img src="${src}" style="max-width:95%;max-height:90vh;border-radius:8px;object-fit:contain;"><button style="position:absolute;top:16px;right:16px;background:rgba(255,255,255,0.15);border:none;border-radius:50%;width:36px;height:36px;color:white;font-size:1.1rem;cursor:pointer;">✕</button>`;
+                ov.addEventListener('click', () => ov.remove());
+                document.body.appendChild(ov);
             }
 
             // ── 공유 기능 ────────────────────────────────────────────────
@@ -2348,8 +2744,18 @@
                     return;
                 }
 
-                // 정렬: 최근 가져온 업무 상단
+                // 정렬 모드 적용
+                const sortMode = this._sortMode || 'import';
                 filteredWorkflows.sort((a, b) => {
+                    if (sortMode === 'dday') {
+                        const da = this._calcDday(a.date || a.deadline) ?? 9999;
+                        const db = this._calcDday(b.date || b.deadline) ?? 9999;
+                        return da - db;
+                    }
+                    if (sortMode === 'progress') {
+                        return this.calculateProgress(a) - this.calculateProgress(b);
+                    }
+                    // 기본: 최근 가져온순
                     const iA = a.importedAt ? new Date(a.importedAt).getTime() : 0;
                     const iB = b.importedAt ? new Date(b.importedAt).getTime() : 0;
                     if (iA === 0 && iB === 0) {
@@ -2499,6 +2905,7 @@
                 const workflow = this.allData.workflows.find(w => w.id === workflowId);
                 if (!workflow) return;
                 this.currentWorkflowId = workflowId;
+                localStorage.setItem('lastOpenedWorkflow', workflowId); // ② 마지막 업무 저장
                 this.enableAiPartnerWorkflowContext();
                 this.updateAiPartnerContextUI();
 
@@ -2539,14 +2946,21 @@
                                </button>`
                             : '';
 
-                        return `
+                        // 사진 썸네일
+                    const photosHtml = (item.photos && item.photos.length > 0)
+                        ? `<div class="cl-photo-wrap">${item.photos.map((p,pi) => `<img class="cl-photo-thumb" src="${p}" onclick="app._viewPhoto('${p}')" />`).join('')}<div class="cl-photo-add" onclick="event.stopPropagation();app._addPhoto(${workflowId},${index})">${this.ic.download(18)}</div></div>`
+                        : '';
+
+                    return `
                             <div class="cl-card ${isCompleted ? 'completed' : ''} ${isSkipped ? 'skipped' : ''}" id="cl-card-${index}">
                                 <div class="cl-card-row">
                                     ${checkWrap}
                                     <span class="cl-num">${num}</span>
                                     <span class="cl-text">${this.escapeHtml(item.text || '')}</span>
                                     ${aiBtn}
+                                    ${!isSkipped ? `<button class="cl-ai-btn" style="background:rgba(37,99,235,0.07);border-color:rgba(37,99,235,0.15);color:var(--accent);" onclick="event.stopPropagation();app._addPhoto(${workflowId},${index})" title="사진 첨부"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></button>` : ''}
                                 </div>
+                                ${photosHtml}
                                 ${skipInfo}
                             </div>`;
                     }).join('');
@@ -2562,6 +2976,7 @@
                 }
 
                 this.openChecklist();
+                this._initSwipeToComplete(workflowId); // ⑧ 스와이프 완료
             }
 
             enableAiPartnerWorkflowContext() {
