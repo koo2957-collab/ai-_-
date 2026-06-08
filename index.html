@@ -23,6 +23,14 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- PDF 파싱 (PDF.js) + DOCX 파싱 (Mammoth.js) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+    <script>
+        if (typeof pdfjsLib !== 'undefined') {
+            pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        }
+    </script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         input, textarea, select, button {
@@ -1776,6 +1784,238 @@
 
 
     <script>
+        // ============================================================
+        // PDF/DOCX 파싱 + 임베딩 RAG 헬퍼 함수 (모듈 레벨)
+        // ============================================================
+
+        // PDF 페이지 텍스트 추출 (pdf.js 좌표 기반 줄 복원)
+        function parsePdfPageToText(textContent) {
+            const items = textContent.items;
+            if (!items || items.length === 0) return '';
+            const positioned = items
+                .filter(item => item.str && item.str.trim())
+                .map(item => ({
+                    str: item.str,
+                    x: item.transform[4],
+                    y: item.transform[5],
+                    fontSize: Math.abs(item.transform[0]) || Math.abs(item.transform[3]) || 12
+                }));
+            if (positioned.length === 0) return '';
+            positioned.sort((a, b) => b.y - a.y || a.x - b.x);
+            const Y_TOLERANCE = 3;
+            const lines = [];
+            let currentLine = null;
+            for (const item of positioned) {
+                if (!currentLine || Math.abs(item.y - currentLine.y) > Y_TOLERANCE) {
+                    currentLine = { y: item.y, items: [], maxFontSize: 0 };
+                    lines.push(currentLine);
+                }
+                currentLine.items.push(item);
+                currentLine.maxFontSize = Math.max(currentLine.maxFontSize, item.fontSize);
+            }
+            const lineTexts = lines.map(line => ({
+                text: line.items.sort((a, b) => a.x - b.x).map(i => i.str).join(''),
+                y: line.y,
+                fontSize: line.maxFontSize
+            }));
+            let avgGap = 14;
+            if (lineTexts.length > 1) {
+                const gaps = [];
+                for (let i = 0; i < lineTexts.length - 1; i++) {
+                    const g = Math.abs(lineTexts[i].y - lineTexts[i + 1].y);
+                    if (g > 0 && g < 100) gaps.push(g);
+                }
+                if (gaps.length > 0) avgGap = gaps.reduce((a, b) => a + b, 0) / gaps.length;
+            }
+            const headingPattern = /^(제\d+[장절조항]|[①-⑳]|\d{1,2}\.\s+\S|[가-힣]\.\s+\S|붙임\s*\d*[.:：]?|수신\s*[.:：]|발신\s*[.:：]|제목\s*[.:：]|별첨\s*\d*[.:：]?)/;
+            let result = '';
+            for (let i = 0; i < lineTexts.length; i++) {
+                const line = lineTexts[i];
+                const text = line.text.trim();
+                if (!text) continue;
+                if (i > 0) {
+                    const gap = Math.abs(lineTexts[i - 1].y - line.y);
+                    if (gap > avgGap * 1.8) result += '\n';
+                }
+                const isHeading = text.length < 60 && headingPattern.test(text);
+                result += (isHeading ? '\n' + text : text) + '\n';
+            }
+            return result.trim();
+        }
+
+        // DOCX HTML → 표 구조 보존 텍스트
+        function _docxHtmlToText(html) {
+            let t = html;
+            t = t.replace(/<\/tr>/gi, '\n');
+            t = t.replace(/<t[dh][^>]*>/gi, '| ');
+            t = t.replace(/<\/t[dh]>/gi, ' ');
+            t = t.replace(/<\/?table[^>]*>/gi, '\n');
+            t = t.replace(/<thead[^>]*>/gi, '').replace(/<\/thead>/gi, '');
+            t = t.replace(/<tbody[^>]*>/gi, '').replace(/<\/tbody>/gi, '');
+            t = t.replace(/<\/p>/gi, '\n');
+            t = t.replace(/<\/h[1-6]>/gi, '\n');
+            t = t.replace(/<br\s*\/?>/gi, '\n');
+            t = t.replace(/<li[^>]*>/gi, '• ');
+            t = t.replace(/<\/li>/gi, '\n');
+            t = t.replace(/<[^>]+>/g, '');
+            t = t.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+                 .replace(/&nbsp;/g, ' ').replace(/&#[0-9]+;/gi, ' ').replace(/&[a-z]+;/gi, ' ');
+            return t.replace(/\n{3,}/g, '\n\n').trim();
+        }
+
+        // 의미 단위 청킹 (장/절/조문/번호섹션/문단 순 우선순위)
+        function createSemanticChunks(docContent, chunkSize = 800, overlap = 100) {
+            if (!docContent || docContent.length === 0) return [];
+            const chunks = [];
+            const semanticUnits = [];
+            const mdHeadingMatches = docContent.match(/^#{1,3} .+/mg);
+            if (mdHeadingMatches && mdHeadingMatches.length > 1) {
+                let lastIndex = 0;
+                mdHeadingMatches.forEach((match, idx) => {
+                    const matchIndex = docContent.indexOf(match, lastIndex);
+                    if (matchIndex > lastIndex) semanticUnits.push({ text: docContent.substring(lastIndex, matchIndex), type: 'normal' });
+                    const nextMatch = mdHeadingMatches[idx + 1];
+                    const nextIndex = nextMatch ? docContent.indexOf(nextMatch, matchIndex + match.length) : docContent.length;
+                    semanticUnits.push({ text: docContent.substring(matchIndex, nextIndex), type: 'md-section', heading: match });
+                    lastIndex = nextIndex;
+                });
+                if (lastIndex < docContent.length) semanticUnits.push({ text: docContent.substring(lastIndex), type: 'normal' });
+            } else {
+                const splitByMatches = (matches, unitType) => {
+                    let lastIndex = 0;
+                    matches.forEach((match, idx) => {
+                        const matchIndex = docContent.indexOf(match, lastIndex);
+                        if (matchIndex > lastIndex) semanticUnits.push({ text: docContent.substring(lastIndex, matchIndex), type: 'normal' });
+                        const nextMatch = matches[idx + 1];
+                        const nextIndex = nextMatch ? docContent.indexOf(nextMatch, matchIndex + match.length) : docContent.length;
+                        semanticUnits.push({ text: docContent.substring(matchIndex, nextIndex), type: unitType, articleNum: match.match(/제(\d+)[장절조]/)?.[1] });
+                        lastIndex = nextIndex;
+                    });
+                    if (lastIndex < docContent.length) semanticUnits.push({ text: docContent.substring(lastIndex), type: 'normal' });
+                };
+                const chapterMatches = docContent.match(/^제\d+[장절][^\n]*/mg);
+                if (chapterMatches && chapterMatches.length >= 2) {
+                    splitByMatches(chapterMatches, 'chapter');
+                } else {
+                    const articleMatches = docContent.match(/제\d+조[^\n]*/g);
+                    if (articleMatches && articleMatches.length >= 2) {
+                        splitByMatches(articleMatches, 'article');
+                    } else {
+                        const numberedMatches = docContent.match(/^(?:\d{1,2}\.\s+\S[^\n]{4,}|[가-힣]\.\s+\S[^\n]{4,}|[①-⑳]\s*\S[^\n]{4,})/mg);
+                        if (numberedMatches && numberedMatches.length >= 3) {
+                            splitByMatches(numberedMatches, 'section');
+                        } else {
+                            const paragraphs = docContent.split(/\n\n+/).filter(p => p.trim().length > 20);
+                            paragraphs.forEach(para => semanticUnits.push({ text: para.trim(), type: 'paragraph' }));
+                        }
+                    }
+                }
+            }
+            semanticUnits.forEach(unit => {
+                if (unit.text.length <= chunkSize) {
+                    chunks.push({ text: unit.text, type: unit.type, articleNum: unit.articleNum, startIndex: docContent.indexOf(unit.text), length: unit.text.length });
+                } else {
+                    let start = 0;
+                    while (start < unit.text.length) {
+                        const end = Math.min(start + chunkSize, unit.text.length);
+                        let chunkText = unit.text.substring(start, end);
+                        if (end < unit.text.length) {
+                            const lastSentenceEnd = Math.max(chunkText.lastIndexOf('.'), chunkText.lastIndexOf('。'), chunkText.lastIndexOf('\n'));
+                            if (lastSentenceEnd > chunkSize * 0.7) {
+                                chunkText = unit.text.substring(start, start + lastSentenceEnd + 1);
+                                start += lastSentenceEnd + 1;
+                            } else {
+                                start = end - overlap;
+                            }
+                        } else {
+                            start = end;
+                        }
+                        chunks.push({ text: chunkText.trim(), type: unit.type, articleNum: unit.articleNum });
+                    }
+                }
+            });
+            return chunks.filter(c => c.text.length > 20);
+        }
+
+        // 코사인 유사도
+        function cosineSimilarity(a, b) {
+            let dot = 0, normA = 0, normB = 0;
+            for (let i = 0; i < a.length; i++) { dot += a[i] * b[i]; normA += a[i] * a[i]; normB += b[i] * b[i]; }
+            return dot / (Math.sqrt(normA) * Math.sqrt(normB) + 1e-8);
+        }
+
+        // 임베딩 세션 캐시
+        const _embeddingCache = new Map();
+        const EMBEDDING_MODEL = 'gemini-embedding-2';
+
+        // RPD 한도 추적 (무료: 1000/일, 50 버퍼 확보)
+        const EMBEDDING_RPD_LIMIT = 950;
+        const EMBEDDING_RPM_DELAY = 650; // ms 간격 (100 RPM 안전 유지)
+        function _getEmbeddingQuota() {
+            const today = new Date().toISOString().split('T')[0];
+            try {
+                const q = JSON.parse(localStorage.getItem('_embQuota') || '{}');
+                if (q.date !== today) return { date: today, used: 0 };
+                return q;
+            } catch { return { date: today, used: 0 }; }
+        }
+        function _trackEmbeddingRequest() {
+            const q = _getEmbeddingQuota();
+            q.used = (q.used || 0) + 1;
+            try { localStorage.setItem('_embQuota', JSON.stringify(q)); } catch {}
+        }
+        function _remainingRPD() {
+            return Math.max(0, EMBEDDING_RPD_LIMIT - (_getEmbeddingQuota().used || 0));
+        }
+
+        // 단일 텍스트 임베딩 (캐시 포함)
+        async function generateEmbedding(text, apiKey) {
+            const cacheKey = text.substring(0, 300);
+            if (_embeddingCache.has(cacheKey)) return _embeddingCache.get(cacheKey);
+            const resp = await fetch(
+                `https://generativelanguage.googleapis.com/v1beta/models/${EMBEDDING_MODEL}:embedContent?key=${apiKey}`,
+                { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ model: `models/${EMBEDDING_MODEL}`, content: { parts: [{ text: text.substring(0, 2048) }] } }) }
+            );
+            if (resp.status === 429) throw new Error(`RATE_LIMIT:${EMBEDDING_MODEL}`);
+            if (!resp.ok) throw new Error(`Embedding API ${resp.status}`);
+            const vec = (await resp.json()).embedding.values;
+            if (_embeddingCache.size >= 100) _embeddingCache.delete(_embeddingCache.keys().next().value);
+            _embeddingCache.set(cacheKey, vec);
+            return vec;
+        }
+
+        // 배치 임베딩 (여러 청크 한번에)
+        async function generateBatchEmbeddings(texts, apiKey) {
+            const requests = texts.map(t => ({ model: `models/${EMBEDDING_MODEL}`, content: { parts: [{ text: t.substring(0, 2048) }] } }));
+            const resp = await fetch(
+                `https://generativelanguage.googleapis.com/v1beta/models/${EMBEDDING_MODEL}:batchEmbedContents?key=${apiKey}`,
+                { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ requests }) }
+            );
+            if (resp.status === 429) throw new Error(`RATE_LIMIT:${EMBEDDING_MODEL}`);
+            if (!resp.ok) throw new Error(`Batch embedding API ${resp.status}`);
+            _trackEmbeddingRequest();
+            return (await resp.json()).embeddings.map(e => e.values);
+        }
+
+        // 하이브리드 청크 검색 (임베딩 60% + 키워드 40%)
+        async function searchChunksByEmbedding(embeddedChunks, questionText, apiKey, maxChunks = 8) {
+            const queryVec = await generateEmbedding(questionText, apiKey);
+            const queryTokens = questionText.toLowerCase().split(/[\s\n\r\t.,;:!?()\[\]{}'"]+/).filter(w => w.length >= 2);
+            const scored = embeddedChunks
+                .filter(c => c.embedding && c.embedding.length > 0)
+                .map(c => {
+                    const embScore = cosineSimilarity(queryVec, c.embedding);
+                    const chunkLower = (c.text || '').toLowerCase();
+                    const matchCount = queryTokens.filter(t => chunkLower.includes(t)).length;
+                    const kwScore = queryTokens.length > 0 ? matchCount / queryTokens.length : 0;
+                    return { chunk: c, score: embScore * 0.6 + kwScore * 0.4, embScore };
+                });
+            scored.sort((a, b) => b.score - a.score);
+            return scored.filter(x => x.embScore > 0.2).slice(0, maxChunks).map(x => x.chunk);
+        }
+
+        // ============================================================
         // IndexedDB 관리 클래스
         class IndexedDBManager {
             constructor() {
@@ -1954,6 +2194,17 @@
                     request.onerror = () => reject(request.error);
                 });
             }
+
+            async getAllPdfDocuments() {
+                if (!this.db) return [];
+                return new Promise((resolve, reject) => {
+                    const transaction = this.db.transaction(['pdfDocuments'], 'readonly');
+                    const store = transaction.objectStore('pdfDocuments');
+                    const request = store.getAll();
+                    request.onsuccess = () => resolve(request.result || []);
+                    request.onerror = () => reject(request.error);
+                });
+            }
         }
 
         // 모바일 업무 관리자
@@ -2028,6 +2279,7 @@
                         this._checkDeadlineAlerts();
                         this._restoreLastWorkflow();
                     }, 700);
+                    setTimeout(() => this._retryFailedEmbeddings(), 4000);
                     // 외부 클릭 시 헤더 드롭다운 닫기
                     document.addEventListener('click', (e) => {
                         const dd = document.getElementById('headerDropdown');
@@ -4837,6 +5089,8 @@ ${deadlineInfo ? `- 마감일 고려: ${deadlineInfo.includes('오늘 마감') ?
                     const todayDate = new Date().toISOString().slice(0, 10);
                     const todayDateKR = new Date().toLocaleDateString('ko-KR');
                     let importedCount = 0;
+                    // 파싱·임베딩을 위해 수집할 { projectId, filename, blob } 목록
+                    const attachmentsToProcess = [];
 
                     for (const project of packageData.projects) {
                         if (!project || !project.id) continue;
@@ -4862,37 +5116,114 @@ ${deadlineInfo ? `- 마감일 고려: ${deadlineInfo.includes('오늘 마감') ?
                         this.lastImportedWorkflowIds.push(project.id);
                         importedCount++;
 
-                        // 체크리스트 세부 정보 복원
-                        const projectKey = `project-${project.id}`;
+                        const newId = project.id;
+                        const projectKey = `project-${newId}`;
+
+                        // ── 구 형식(project type): packageData.files 처리 ──
                         if (packageData.files) {
                             for (const key in packageData.files) {
                                 if (key.includes(`project-${oldId}-`)) {
                                     const fileInfo = packageData.files[key];
                                     if (fileInfo && fileInfo.data) {
-                                        const blob = await this.base64ToBlob(fileInfo.data, fileInfo.type);
-                                        const fileData = {
-                                            projectKey: projectKey,
+                                        const blob = this.base64ToBlob(fileInfo.data, fileInfo.type);
+                                        await this.dbManager.saveFile('projectFiles', {
+                                            projectKey,
                                             fileName: fileInfo.name,
                                             fileType: fileInfo.type,
                                             fileSize: blob.size,
-                                            blob: blob,
+                                            blob,
                                             uploadDate: new Date().toISOString()
-                                        };
-                                        await this.dbManager.saveFile('projectFiles', fileData);
+                                        });
+                                        attachmentsToProcess.push({ projectId: newId, filename: fileInfo.name, blob });
                                     }
                                 }
+                            }
+                        }
+
+                        // ── 신 형식(workflow_package): checklistDetailsMap + attachmentsData 처리 ──
+
+                        // 1) checklistDetailsMap 키 재매핑 후 저장
+                        if (packageData.checklistDetailsMap) {
+                            const detailsMap = packageData.checklistDetailsMap;
+                            for (const oldKey of Object.keys(detailsMap)) {
+                                // 키 패턴: "OLDID-0", "OLDID-1", "project-OLDID"
+                                const newKey = oldKey
+                                    .replace(`project-${oldId}`, `project-${newId}`)
+                                    .replace(new RegExp(`^${oldId}-`), `${newId}-`);
+                                const details = { ...detailsMap[oldKey] };
+                                // 첨부파일·서식 레퍼런스는 아래 attachmentsData 처리 후 덮어씀
+                                details.attachments = [];
+                                this.checklistDetails[newKey] = details;
+                                await this.dbManager.saveChecklistDetails(newKey, details).catch(() => {});
+                            }
+                        }
+
+                        // 2) attachmentsData: base64 → blob → projectFiles 저장 → checklistDetails 업데이트
+                        if (packageData.attachmentsData) {
+                            for (const [oldKey, attachments] of Object.entries(packageData.attachmentsData)) {
+                                if (!Array.isArray(attachments) || attachments.length === 0) continue;
+                                const newKey = oldKey
+                                    .replace(`project-${oldId}`, `project-${newId}`)
+                                    .replace(new RegExp(`^${oldId}-`), `${newId}-`);
+
+                                const restoredAttachments = [];
+                                for (const att of attachments) {
+                                    if (!att.base64Data) continue;
+                                    try {
+                                        const blob = this.base64ToBlob(att.base64Data, att.type || 'application/octet-stream');
+                                        const fileId = await this.dbManager.saveFile('projectFiles', {
+                                            projectKey: newKey,
+                                            fileName: att.name,
+                                            fileType: att.type,
+                                            fileSize: att.size || blob.size,
+                                            blob,
+                                            uploadDate: att.uploadDate || new Date().toISOString()
+                                        });
+                                        restoredAttachments.push({
+                                            id: fileId, name: att.name, type: att.type,
+                                            size: att.size || blob.size,
+                                            uploadDate: att.uploadDate,
+                                            inIndexedDB: true, storeName: 'projectFiles'
+                                        });
+                                        // 파싱·임베딩 목록에 추가
+                                        attachmentsToProcess.push({ projectId: newId, filename: att.name, blob });
+                                    } catch(e) { console.warn('첨부자료 복원 실패:', att.name, e); }
+                                }
+
+                                if (!this.checklistDetails[newKey]) this.checklistDetails[newKey] = {};
+                                this.checklistDetails[newKey].attachments = restoredAttachments;
+                                await this.dbManager.saveChecklistDetails(newKey, this.checklistDetails[newKey]).catch(() => {});
                             }
                         }
                     }
 
                     this.displayWorkflows();
-                    
-                    // 3초 후 NEW 뱃지 제거
-                    setTimeout(() => {
-                        this.lastImportedWorkflowIds = [];
-                        this.displayWorkflows();
-                    }, 3000);
-                    
+                    setTimeout(() => { this.lastImportedWorkflowIds = []; this.displayWorkflows(); }, 3000);
+
+                    // ── 첨부파일 파싱 + 임베딩 (백그라운드) ──
+                    if (attachmentsToProcess.length > 0) {
+                        const apiKey = this.allData.provider === 'gemini' ? this.allData.geminiApiKey : '';
+                        this.showToast('info', '📄', `첨부파일 ${attachmentsToProcess.length}개 분석 중... (백그라운드)`);
+                        // 프로젝트별로 그룹핑
+                        const byProject = {};
+                        for (const item of attachmentsToProcess) {
+                            if (!byProject[item.projectId]) byProject[item.projectId] = [];
+                            byProject[item.projectId].push({ filename: item.filename, blob: item.blob });
+                        }
+                        (async () => {
+                            let totalParsed = 0, totalEmbedded = 0;
+                            for (const [pid, blobs] of Object.entries(byProject)) {
+                                const result = await this._parseAndEmbedImportedAttachments(pid, blobs, apiKey);
+                                totalParsed += result.parsedCount;
+                                totalEmbedded += result.embeddedCount;
+                            }
+                            if (totalParsed > 0) {
+                                const embMsg = totalEmbedded > 0 ? ` · 임베딩 ${totalEmbedded}개` : ' (임베딩: API 키 필요)';
+                                this.showToast('success', '🔗', `첨부파일 분석 완료 — ${totalParsed}개 파싱${embMsg}`);
+                            }
+                        })();
+                    }
+
                     this.showToast('success', '✅', `업무 ${importedCount}개 가져오기 완료`);
                 } catch (error) {
                     console.error('가져오기 오류:', error);
@@ -5475,7 +5806,8 @@ ${deadlineInfo ? `- 마감일 고려: ${deadlineInfo.includes('오늘 마감') ?
                             content: doc.content,
                             parsedAt: doc.parsedAt,
                             pageCount: doc.pageCount,
-                            summary: doc.summary
+                            summary: doc.summary,
+                            chunkEmbeddings: doc.chunkEmbeddings || null
                         }));
                     }
                 } catch (error) {
@@ -5553,36 +5885,52 @@ ${deadlineInfo ? `- 마감일 고려: ${deadlineInfo.includes('오늘 마감') ?
                 return Array.from(keywords).slice(0, 20);
             }
 
-            // 스마트 문서 컨텍스트 생성
+            // 스마트 문서 컨텍스트 생성 (임베딩 우선 → 키워드 폴백 → 요약 폴백)
             async getSmartDocContext(doc, questionText, workflowId, apiKey, provider, model) {
-                // 1. 기존 요약 가져오기 (전체 개요)
                 const summary = await this.getCachedSummary(doc, workflowId, apiKey, provider, model);
-                
-                // 2. 질문이 구체적인지 판단
-                const isSpecificQuestion = questionText && (
-                    questionText.includes('제') && questionText.match(/\d+조/) || // 법조문
-                    questionText.match(/\d+일/) || // 날짜
-                    questionText.match(/\d+원/) || // 금액
-                    questionText.match(/\d+%/) || // 비율
-                    questionText.length < 30 // 짧은 구체적 질문
-                );
-                
-                // 3. 구체적 질문이면 관련 부분 추출
-                if (isSpecificQuestion && doc.content) {
-                    const relevantText = this.extractRelevantText(doc.content, questionText, 2500);
-                    
-                    // 관련 부분이 요약과 크게 다르면 사용
-                    const summaryLower = (summary || '').toLowerCase();
-                    const relevantLower = relevantText.toLowerCase();
-                    const similarity = this.calculateTextSimilarity(summaryLower, relevantLower);
-                    
-                    // 유사도가 낮고 관련 부분이 충분히 길면 관련 부분 사용
-                    if (similarity < 0.7 && relevantText.length > 200) {
-                        return `[질문 관련 부분]\n${relevantText}`;
+
+                if (questionText && questionText.trim().length > 0 && doc.content) {
+
+                    // 1. 임베딩 기반 시맨틱 검색 우선 (chunkEmbeddings가 있을 때)
+                    if (doc.chunkEmbeddings && apiKey && provider === 'gemini') {
+                        const embChunks = doc.chunkEmbeddings.filter(c => c.embedding && c.embedding.length > 0);
+                        if (embChunks.length > 0) {
+                            try {
+                                const isComplex = questionText.length > 100 || /제\d+[장절조]|비교|차이|절차|요건/.test(questionText);
+                                const maxChunks = isComplex ? 10 : questionText.length < 40 ? 5 : 8;
+                                const topChunks = await searchChunksByEmbedding(embChunks, questionText, apiKey, maxChunks);
+                                if (topChunks.length > 0) {
+                                    const relevantText = topChunks.map(c => c.text).join('\n\n');
+                                    return `[문서 개요]\n${summary || '요약 없음'}\n\n[질문 관련 상세 내용 (시맨틱 검색)]\n${relevantText}`;
+                                }
+                            } catch(e) {
+                                console.warn('임베딩 검색 실패, 키워드 폴백:', e);
+                            }
+                        }
+                    }
+
+                    // 2. 키워드 기반 관련 부분 추출 (폴백)
+                    const docLen = doc.content.length;
+                    const ctxLimit = docLen <= 8000 ? docLen : docLen <= 50000 ? 4000 : 2500;
+                    const relevantText = this.extractRelevantText(doc.content, questionText, ctxLimit);
+                    if (relevantText && relevantText.length > 200) {
+                        const summaryLower = (summary || '').toLowerCase();
+                        const similarity = this.calculateTextSimilarity(summaryLower, relevantText.toLowerCase());
+                        if (similarity < 0.7) {
+                            return `[문서 개요]\n${summary || '요약 없음'}\n\n[질문 관련 상세 내용]\n${relevantText}`;
+                        }
+                    }
+
+                    // 3. 요약 기반 폴백 (관련 키워드가 요약에 있으면)
+                    const lowerQ = questionText.toLowerCase();
+                    const lowerS = (summary || '').toLowerCase();
+                    const hasKeyword = lowerQ.split(/[\s.,;:!?]+/).filter(w => w.length >= 2).some(w => lowerS.includes(w));
+                    if (summary && hasKeyword) {
+                        return `[문서 요약]\n${summary}\n\n⚠️ 질문 관련 상세 내용을 추출하지 못했습니다. 위 요약을 참고하세요.`;
                     }
                 }
-                
-                // 4. 일반 질문 또는 관련 부분 추출 실패: 전체 요약 사용
+
+                // 4. 최종 폴백: 요약 또는 원문 앞부분
                 return summary || (doc.content ? doc.content.substring(0, 2000) : '');
             }
             
@@ -5851,6 +6199,181 @@ ${pdfContent.length > 100000 ? pdfContent.substring(0, 100000) + '\n\n[중략: �
                 }
                 
                 return result.trim();
+            }
+
+            // Blob → Base64 (Promise 반환)
+            _blobToBase64(blob) {
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = () => resolve(reader.result);
+                    reader.onerror = reject;
+                    reader.readAsDataURL(blob);
+                });
+            }
+
+            // Blob에서 텍스트 추출 (PDF/DOCX/TXT 지원)
+            async _extractTextFromBlob(blob, filename) {
+                try {
+                    const fn = (filename || '').toLowerCase();
+                    if (fn.endsWith('.txt') || fn.endsWith('.md') || fn.endsWith('.csv')) {
+                        return await blob.text();
+                    }
+                    if (fn.endsWith('.docx') && typeof mammoth !== 'undefined') {
+                        const arrayBuffer = await blob.arrayBuffer();
+                        const result = await mammoth.convertToHtml({ arrayBuffer });
+                        return _docxHtmlToText(result.value || '') || null;
+                    }
+                    if (fn.endsWith('.pdf') && typeof pdfjsLib !== 'undefined') {
+                        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+                        const arrayBuffer = await blob.arrayBuffer();
+                        const pdf = await pdfjsLib.getDocument(arrayBuffer).promise;
+                        let fullText = '';
+                        for (let i = 1; i <= pdf.numPages; i++) {
+                            const page = await pdf.getPage(i);
+                            const textContent = await page.getTextContent();
+                            fullText += parsePdfPageToText(textContent) + '\n\n';
+                        }
+                        return fullText.trim() || null;
+                    }
+                    return null;
+                } catch(e) {
+                    console.warn('텍스트 추출 실패:', filename, e);
+                    return null;
+                }
+            }
+
+            // 문서 임베딩 생성 + IndexedDB 저장 (projectId + filename 기준)
+            async _generateDocEmbeddings(projectId, filename, apiKey) {
+                try {
+                    const docs = await this.dbManager.getPdfDocumentsByProject(projectId);
+                    const doc = docs.find(d => d.filename === filename);
+                    if (!doc || !doc.content) return false;
+
+                    const chunks = createSemanticChunks(doc.content, 800, 100);
+                    if (chunks.length === 0) return false;
+
+                    const BATCH_SIZE = 10;
+                    const embeddedChunks = [];
+                    for (let i = 0; i < chunks.length; i += BATCH_SIZE) {
+                        const batch = chunks.slice(i, i + BATCH_SIZE);
+                        try {
+                            const vecs = await generateBatchEmbeddings(batch.map(c => c.text), apiKey);
+                            batch.forEach((chunk, j) => embeddedChunks.push({ ...chunk, embedding: vecs[j] }));
+                        } catch(e) {
+                            batch.forEach(chunk => embeddedChunks.push({ ...chunk, embedding: null }));
+                        }
+                    }
+
+                    await this.dbManager.savePdfDocument({
+                        ...doc,
+                        chunkEmbeddings: embeddedChunks,
+                        embeddedAt: new Date().toISOString(),
+                        embeddedChunkCount: embeddedChunks.filter(c => c.embedding?.length > 0).length
+                    });
+                    return true;
+                } catch(e) {
+                    console.warn('임베딩 생성 실패:', filename, e);
+                    return false;
+                }
+            }
+
+            // 가져온 첨부파일 파싱 → pdfDocuments 저장 → 임베딩 생성 파이프라인
+            async _parseAndEmbedImportedAttachments(projectId, attachmentBlobs, apiKey) {
+                let parsedCount = 0;
+                let embeddedCount = 0;
+                for (const { filename, blob } of attachmentBlobs) {
+                    try {
+                        const text = await this._extractTextFromBlob(blob, filename);
+                        if (!text || text.trim().length < 50) continue;
+
+                        const docData = {
+                            projectId: projectId,
+                            filename: filename,
+                            content: text,
+                            parsedAt: new Date().toISOString(),
+                            pageCount: Math.ceil(text.length / 2000)
+                        };
+
+                        if (apiKey) {
+                            const chunks = createSemanticChunks(text, 800, 100);
+                            const BATCH_SIZE = 10;
+                            const embeddedChunks = [];
+                            for (let i = 0; i < chunks.length; i += BATCH_SIZE) {
+                                const batch = chunks.slice(i, i + BATCH_SIZE);
+                                try {
+                                    const vecs = await generateBatchEmbeddings(batch.map(c => c.text), apiKey);
+                                    batch.forEach((chunk, j) => embeddedChunks.push({ ...chunk, embedding: vecs[j] }));
+                                } catch(e) {
+                                    batch.forEach(chunk => embeddedChunks.push(chunk));
+                                }
+                            }
+                            docData.chunkEmbeddings = embeddedChunks;
+                            docData.embeddedAt = new Date().toISOString();
+                            docData.embeddedChunkCount = embeddedChunks.filter(c => c.embedding?.length > 0).length;
+                            if (docData.embeddedChunkCount > 0) embeddedCount++;
+                        }
+
+                        await this.dbManager.savePdfDocument(docData);
+                        parsedCount++;
+                    } catch(e) {
+                        console.warn('첨부파일 파싱 오류:', filename, e);
+                    }
+                }
+                return { parsedCount, embeddedCount };
+            }
+
+            // 실패한 임베딩 자동 재시도 (앱 시작 시 조용히 실행)
+            async _retryFailedEmbeddings() {
+                const apiKey = this.allData.provider === 'gemini' ? this.allData.geminiApiKey : '';
+                if (!apiKey) return;
+                try {
+                    const allDocs = await this.dbManager.getAllPdfDocuments();
+                    const toRetry = allDocs.filter(doc =>
+                        doc.chunkEmbeddings?.some(c => c.embedding === null || !(c.embedding?.length > 0))
+                    );
+                    if (toRetry.length === 0) return; // 실패한 임베딩 없음 → 완전 무음
+
+                    let totalRetried = 0;
+                    for (const doc of toRetry) {
+                        if (_remainingRPD() <= 0) break;
+
+                        const failedIndices = doc.chunkEmbeddings
+                            .map((c, i) => i)
+                            .filter(i => !(doc.chunkEmbeddings[i].embedding?.length > 0));
+
+                        const updatedChunks = [...doc.chunkEmbeddings];
+                        for (let i = 0; i < failedIndices.length; i += 10) {
+                            if (_remainingRPD() <= 0) break;
+                            const batchIndices = failedIndices.slice(i, i + 10);
+                            const batchTexts = batchIndices.map(idx => doc.chunkEmbeddings[idx].text);
+                            try {
+                                await new Promise(r => setTimeout(r, EMBEDDING_RPM_DELAY));
+                                const vecs = await generateBatchEmbeddings(batchTexts, apiKey);
+                                batchIndices.forEach((idx, j) => {
+                                    if (vecs[j]?.length > 0) {
+                                        updatedChunks[idx] = { ...updatedChunks[idx], embedding: vecs[j] };
+                                        totalRetried++;
+                                    }
+                                });
+                            } catch(e) {
+                                if (e.message?.startsWith('RATE_LIMIT')) break; // 한도 재초과 → 중단
+                            }
+                        }
+
+                        await this.dbManager.savePdfDocument({
+                            ...doc,
+                            chunkEmbeddings: updatedChunks,
+                            embeddedChunkCount: updatedChunks.filter(c => c.embedding?.length > 0).length,
+                            embeddedAt: new Date().toISOString()
+                        });
+                    }
+
+                    if (totalRetried > 0) {
+                        this.showToast('success', '✅', `임베딩 보완 완료: ${totalRetried}개 청크`);
+                    }
+                } catch(e) {
+                    console.warn('임베딩 재시도 오류:', e);
+                }
             }
         }
 
