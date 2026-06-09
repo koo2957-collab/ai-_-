@@ -532,11 +532,12 @@
          * → top/bottom/height 3중 충돌 원천 차단 */
         #aiPartnerModal {
             background: rgba(0, 0, 0, 0) !important;
-            /* flex: sheet를 하단에 배치 + overflow:hidden으로 슬라이드 애니메이션 클리핑 */
             display: flex !important;
             flex-direction: column !important;
             justify-content: flex-end !important;
+            align-items: stretch !important;   /* .modal.show align-items:flex-start 차단 */
             overflow: hidden !important;
+            padding: 0 !important;             /* .modal.show padding:20px 차단 — 키보드 계산 정확도 필수 */
             pointer-events: none;
             position: fixed; inset: 0; z-index: 1500;
             opacity: 1 !important;
@@ -564,6 +565,7 @@
             margin: 0 !important;
             overflow: hidden !important;
             display: flex !important; flex-direction: column !important;
+            opacity: 1 !important;       /* .modal-content { opacity:0 } 차단 */
             will-change: transform;
             transform: translateY(100%) !important;
             transition: transform 0.42s cubic-bezier(0.16, 1, 0.3, 1), height 0.22s ease !important;
@@ -2307,9 +2309,15 @@
             }
 
             async init() {
+                // DB 초기화 — 실패해도 앱은 빈 상태로 구동 (file:// 환경 대응)
                 try {
                     await this.dbManager.init();
                     await this.loadData();
+                } catch (dbErr) {
+                    console.warn('IndexedDB 초기화 실패 (오프라인/file:// 환경):', dbErr);
+                }
+
+                try {
                     await this.loadApiKeys();
                     this.aiUsageStats = this.loadAIStats();
                     this.allData.modelMode = 'auto';
@@ -2335,7 +2343,7 @@
                     });
                 } catch (error) {
                     console.error('초기화 오류:', error);
-                    this.showToast('error', '❌', '초기화 실패: ' + error.message);
+                    this.showToast('error', '❌', '초기화 실패: ' + (error?.message || String(error)));
                 }
             }
 
