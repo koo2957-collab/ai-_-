@@ -3745,6 +3745,8 @@
                         </div>`;
                 }).join('');
 
+                // 대화 이력 배너 재삽입 (innerHTML 초기화로 지워지므로 매번 재생성)
+                this._renderChatResetBtn();
                 this.scrollAiChatToBottom();
             }
 
@@ -3939,7 +3941,8 @@
                         const usedModel = this._lastUsedModel || aiConfig.model;
                         this.trackAPICall(true, Math.ceil((prompt.length + (answer||'').length) / 2), usedModel);
                         // 이력 저장
-                        this._aiChatHistory.push({ role: 'user', content: prompt });
+                        // 이력 저장 — 사용자 원문(text)만 저장, 시스템 컨텍스트(prompt)는 현재 턴에만 포함
+                        this._aiChatHistory.push({ role: 'user', content: text });
                         this._aiChatHistory.push({ role: 'assistant', content: answer });
                     } else {
                         // ChatGPT / Claude: 이력 포함 다중턴 호출
@@ -3953,8 +3956,8 @@
                         });
                         if (this.aiPartnerMessages[lastIdx]) this.aiPartnerMessages[lastIdx].text = answer;
                         this.trackAPICall(true, Math.ceil((prompt.length + (answer||'').length) / 2), this.allData.selectedModel[provider]);
-                        // 이력 저장
-                        this._aiChatHistory.push({ role: 'user', content: prompt });
+                        // 이력 저장 — 사용자 원문(text)만 저장
+                        this._aiChatHistory.push({ role: 'user', content: text });
                         this._aiChatHistory.push({ role: 'assistant', content: answer });
                     }
 
