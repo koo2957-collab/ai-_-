@@ -4149,6 +4149,26 @@
                     }
                 }
 
+                // ── 법제처 API 보조 검색 (법령 관련 질문 감지 시 자동 실행) ──
+                const LAW_Q_KEYWORDS = ['법','조문','조항','규정','규칙','조례','시행령','시행규칙','처벌','과태료','징역','벌금','의무','금지','허가','신고','인허가','기준','고시','훈령','예규','법령','법률','행정','위반','제재','벌칙'];
+                const isLawRelated = LAW_Q_KEYWORDS.some(k => userText.includes(k));
+                const ocKey = this.allData.lawApiKey || '';
+
+                if (ocKey && isLawRelated) {
+                    try {
+                        const lawResult = await this.searchLawApi(userText);
+                        if (lawResult) {
+                            context += `\n[법제처 실시간 검색 결과 — 국가법령정보센터 API]\n`;
+                            context += lawResult + `\n`;
+                            context += `--- 법제처 검색 끝 ---\n\n`;
+                        }
+                    } catch(e) { /* 법제처 실패 시 무시 */ }
+                }
+
+                const lawApiRule = (ocKey && isLawRelated)
+                    ? `9. [법제처 실시간 검색 결과]가 있으면: 답변 마지막에 반드시 "※ 위 법령 정보는 국가법령정보센터(law.go.kr) API 검색 결과입니다. 조문 전체가 아닌 검색 요약이므로 상세 내용은 법제처에서 직접 확인하세요."를 추가하세요. 내 첨부 자료와 법령이 상충할 경우 첨부 자료를 우선하되 차이점을 명시하세요.`
+                    : '';
+
                 return [
                     `당신은 대한민국 공무원 행정 업무를 지원하는 전문 'AI 업무파트너'입니다.`,
                     ``,
@@ -4161,6 +4181,7 @@
                     `6. 서식/양식 파일은 "제목"만 참고하고 내용은 추정하거나 인용하지 마세요.`,
                     `7. 친절한 업무 동료처럼 자연스럽게 답하되, 핵심부터 짧게 시작하고 필요 시 단계별로 정리해 주세요.`,
                     `8. 사용자가 다음 행동을 바로 할 수 있게 구체적인 단계·예시·주의사항을 포함해 주세요.`,
+                    lawApiRule,
                     ``,
                     context ? context.trim() : '',
                     `[사용자 질문]\n${userText}`,
@@ -5563,16 +5584,23 @@ ${deadlineInfo ? `- 마감일 고려: ${deadlineInfo.includes('오늘 마감') ?
                 const ocKey = this.allData.lawApiKey || '';
                 if (!ocKey) return null;
                 try {
-                    const url = `https://www.law.go.kr/DRF/lawSearch.do?OC=${encodeURIComponent(ocKey)}&target=law&type=JSON&query=${encodeURIComponent(query)}&display=3&sort=efdate`;
+                    // 질문에서 핵심 법령명/키워드 추출 (최대 20자)
+                    const searchQuery = query.length > 20 ? query.substring(0, 20) : query;
+                    const url = `https://www.law.go.kr/DRF/lawSearch.do?OC=${encodeURIComponent(ocKey)}&target=law&type=JSON&query=${encodeURIComponent(searchQuery)}&display=3&sort=efdate`;
                     const res = await fetch(url, { mode: 'cors', signal: AbortSignal.timeout(8000) });
                     if (!res.ok) return null;
                     const data = await res.json();
+                    if (data?.LawSearch?.errYn === 'Y') return null;
                     const laws = data?.LawSearch?.law;
                     if (!laws) return null;
                     const list = Array.isArray(laws) ? laws : [laws];
-                    return list.slice(0, 3).map(l =>
-                        `[${l.법령명한글}] 시행일: ${l.시행일자 || '미상'}\n조문: ${l.법령ID || ''}`
-                    ).join('\n\n');
+                    return list.slice(0, 3).map(l => {
+                        const name = l.법령명한글 || l.법령명 || '법령명 미상';
+                        const date = l.시행일자 ? `시행일: ${String(l.시행일자).replace(/(\d{4})(\d{2})(\d{2})/, '$1.$2.$3')}` : '';
+                        const dept = l.소관부처명 ? `소관: ${l.소관부처명}` : '';
+                        const lawType = l.법령구분명 || '';
+                        return `• ${name}${lawType ? ` (${lawType})` : ''}\n  ${[date, dept].filter(Boolean).join(' | ')}`;
+                    }).join('\n\n');
                 } catch(e) {
                     console.warn('법제처 API 오류:', e.message);
                     return null;
