@@ -1570,8 +1570,9 @@
                         </div>
                         <input type="password" class="form-input" id="geminiApiKeyInput" placeholder="AIza로 시작하는 키를 입력하세요...">
                         <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;min-height:22px;">
-                            <span id="geminiApiKeyStatus" style="font-size:0.75rem;color:var(--text-muted);"></span>
-                            <div style="display:flex;gap:5px;">
+                            <span id="geminiApiKeyStatus" style="font-size:0.75rem;color:var(--text-muted);flex:1;"></span>
+                            <div style="display:flex;gap:5px;flex-shrink:0;">
+                                <button id="geminiSaveBtn" class="btn btn-small btn-success" onclick="app.testAndSaveApiKey('gemini')">저장</button>
                                 <button class="btn btn-small btn-secondary" onclick="app.resetApiKeyInput('gemini')">키 변경</button>
                                 <button class="btn btn-small btn-danger" onclick="app.deleteApiKey('gemini')">삭제</button>
                             </div>
@@ -1592,8 +1593,9 @@
                         </div>
                         <input type="password" class="form-input" id="chatgptApiKeyInput" placeholder="sk-로 시작하는 키를 입력하세요...">
                         <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;min-height:22px;">
-                            <span id="chatgptApiKeyStatus" style="font-size:0.75rem;color:var(--text-muted);"></span>
-                            <div style="display:flex;gap:5px;">
+                            <span id="chatgptApiKeyStatus" style="font-size:0.75rem;color:var(--text-muted);flex:1;"></span>
+                            <div style="display:flex;gap:5px;flex-shrink:0;">
+                                <button id="chatgptSaveBtn" class="btn btn-small btn-success" onclick="app.testAndSaveApiKey('chatgpt')">저장</button>
                                 <button class="btn btn-small btn-secondary" onclick="app.resetApiKeyInput('chatgpt')">키 변경</button>
                                 <button class="btn btn-small btn-danger" onclick="app.deleteApiKey('chatgpt')">삭제</button>
                             </div>
@@ -1614,8 +1616,9 @@
                         </div>
                         <input type="password" class="form-input" id="claudeApiKeyInput" placeholder="sk-ant-로 시작하는 키를 입력하세요...">
                         <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;min-height:22px;">
-                            <span id="claudeApiKeyStatus" style="font-size:0.75rem;color:var(--text-muted);"></span>
-                            <div style="display:flex;gap:5px;">
+                            <span id="claudeApiKeyStatus" style="font-size:0.75rem;color:var(--text-muted);flex:1;"></span>
+                            <div style="display:flex;gap:5px;flex-shrink:0;">
+                                <button id="claudeSaveBtn" class="btn btn-small btn-success" onclick="app.testAndSaveApiKey('claude')">저장</button>
                                 <button class="btn btn-small btn-secondary" onclick="app.resetApiKeyInput('claude')">키 변경</button>
                                 <button class="btn btn-small btn-danger" onclick="app.deleteApiKey('claude')">삭제</button>
                             </div>
@@ -1623,14 +1626,39 @@
                     </div>
                 </div>
 
-                <!-- 하단 버튼 (연결 테스트 → 저장 → 취소 순) -->
-                <div style="border-top:1px solid var(--border-subtle);padding-top:16px;display:flex;flex-direction:column;gap:8px;">
-                    <div style="display:flex;gap:7px;">
-                        <button class="btn btn-primary" style="flex:1;" onclick="app.testApiConnection()">연결 테스트</button>
-                        <button class="btn btn-success" style="flex:1;" onclick="app.saveApiKey()">저장</button>
-                        <button class="btn btn-secondary" onclick="app.closeModal('settingsModal')">취소</button>
+                <!-- 법제처 Open API 설정 (아코디언) -->
+                <div style="border-top:1px solid var(--border-subtle);">
+                    <div onclick="(function(el){var bd=document.getElementById('lawApiAccBody');var ic=el.querySelector('.law-acc-ico');var open=bd.style.display==='block';bd.style.display=open?'none':'block';ic.style.transform=open?'':'rotate(90deg)';})(this)"
+                         style="display:flex;align-items:center;justify-content:space-between;padding:11px 0 11px;cursor:pointer;user-select:none;">
+                        <div style="display:flex;align-items:center;gap:7px;">
+                            <svg class="law-acc-ico" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color:var(--text-muted);transition:transform 0.2s;flex-shrink:0;"><polyline points="9 18 15 12 9 6"/></svg>
+                            <span style="font-size:0.85rem;font-weight:600;color:var(--text-dark);">법제처 Open API</span>
+                            <span style="font-size:0.68rem;font-weight:700;padding:1px 6px;border-radius:4px;background:rgba(16,185,129,0.1);color:#059669;border:1px solid rgba(16,185,129,0.25);">선택</span>
+                        </div>
+                        <span style="font-size:0.72rem;color:var(--text-muted);">법령 실시간 검색 · 미등록 시 일반 답변</span>
                     </div>
+                    <div id="lawApiAccBody" style="display:none;padding-bottom:14px;">
+                        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;">
+                            <label class="form-label" style="margin:0;">OC 인증키</label>
+                            <a href="https://open.law.go.kr/LSO/openApi/guideList.do" target="_blank" style="font-size:0.72rem;color:var(--accent);text-decoration:none;font-weight:500;">법제처 오픈API에서 무료 발급 →</a>
+                        </div>
+                        <p style="font-size:0.74rem;color:var(--text-muted);margin:0 0 7px;">① 링크 접속 → ② 오픈API 신청 → ③ 서비스 신청 → ④ OC 인증키 복사 후 붙여넣기 (등록 후 법령 관련 질문 시 실시간 조문 검색 활성화)</p>
+                        <input type="password" class="form-input" id="lawApiKeyInput" placeholder="발급받은 OC 인증키를 입력하세요...">
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;min-height:22px;">
+                            <span id="lawApiKeyStatus" style="font-size:0.76rem;color:var(--text-muted);flex:1;"></span>
+                            <div style="display:flex;gap:5px;flex-shrink:0;">
+                                <button class="btn btn-small btn-success" onclick="app.saveLawApiKey()">저장</button>
+                                <button class="btn btn-small btn-secondary" onclick="app.resetLawApiKey()">키 변경</button>
+                                <button class="btn btn-small btn-danger" onclick="app.deleteLawApiKey()">삭제</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 하단 -->
+                <div style="border-top:1px solid var(--border-subtle);padding-top:14px;display:flex;flex-direction:column;gap:8px;">
                     <p style="font-size:0.71rem;color:var(--text-muted);text-align:center;margin:0;">API Key는 백업·내보내기 파일에 포함되지 않습니다</p>
+                    <button class="btn btn-secondary" style="width:100%;" onclick="app.closeModal('settingsModal')">닫기</button>
                 </div>
 
                 <!-- 데이터 초기화 섹션 -->
@@ -2217,6 +2245,7 @@
                     geminiApiKey: '',
                     chatgptApiKey: '',
                     claudeApiKey: '',
+                    lawApiKey: '',
                     selectedModel: {
                         gemini: 'gemini-3.1-flash-lite',
                         chatgpt: 'gpt-4o-mini',
@@ -2225,9 +2254,10 @@
                     modelMode: 'auto',
                     manualModel: 'gemini-3.1-flash-lite'
                 };
+                this.providerConnected = { gemini: false, chatgpt: false, claude: false };
                 this._lastUsedModel = null;
                 this.aiUsageStats = null;
-                this._aiChatHistory = []; // AI 파트너 대화 이력 (최근 8쌍)
+                this._aiChatHistory = [];
 
                 // ── SVG 아이콘 라이브러리 (Lucide 스타일) ──────────────────
                 const S = 'fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"';
@@ -2321,6 +2351,7 @@
                         this.allData.geminiApiKey = await this.decryptApiKey(keys.gemini || '');
                         this.allData.chatgptApiKey = await this.decryptApiKey(keys.chatgpt || '');
                         this.allData.claudeApiKey = await this.decryptApiKey(keys.claude || '');
+                        this.allData.lawApiKey = await this.decryptApiKey(keys.law || '');
                     } catch (e) {
                         console.error('API 키 로드 오류:', e);
                     }
@@ -2346,19 +2377,35 @@
                 const provider = this.allData.provider;
                 document.getElementById('provider-' + provider).checked = true;
                 this.selectProvider(provider);
-                
-                const geminiInput = document.getElementById('geminiApiKeyInput');
-                const chatgptInput = document.getElementById('chatgptApiKeyInput');
-                const claudeInput = document.getElementById('claudeApiKeyInput');
-                
-                if (geminiInput) {
-                    geminiInput.value = this.allData.geminiApiKey ? '✅ API Key가 설정되어 있습니다.' : '';
-                }
-                if (chatgptInput) {
-                    chatgptInput.value = this.allData.chatgptApiKey ? '✅ API Key가 설정되어 있습니다.' : '';
-                }
-                if (claudeInput) {
-                    claudeInput.value = this.allData.claudeApiKey ? '✅ API Key가 설정되어 있습니다.' : '';
+
+                ['gemini', 'chatgpt', 'claude'].forEach(p => {
+                    const input = document.getElementById(p + 'ApiKeyInput');
+                    const status = document.getElementById(p + 'ApiKeyStatus');
+                    if (!input) return;
+                    const keyMap = { gemini: 'geminiApiKey', chatgpt: 'chatgptApiKey', claude: 'claudeApiKey' };
+                    const hasKey = !!this.allData[keyMap[p]];
+                    if (hasKey) {
+                        input.type = 'text';
+                        input.readOnly = true;
+                        input.value = '✅ API Key가 설정되어 있습니다. [키 변경] 버튼으로 수정할 수 있습니다.';
+                        if (status) { status.textContent = '연결됨'; status.style.color = '#16a34a'; }
+                        this.providerConnected[p] = true;
+                    } else {
+                        input.type = 'password';
+                        input.readOnly = false;
+                        input.value = '';
+                        if (status) status.textContent = '';
+                    }
+                });
+
+                // 법제처 키 상태 표시
+                const lawInput = document.getElementById('lawApiKeyInput');
+                const lawStatus = document.getElementById('lawApiKeyStatus');
+                if (lawInput && this.allData.lawApiKey) {
+                    lawInput.type = 'text';
+                    lawInput.readOnly = true;
+                    lawInput.value = '✅ 법제처 OC 인증키가 설정되어 있습니다. [키 변경] 버튼으로 수정할 수 있습니다.';
+                    if (lawStatus) { lawStatus.textContent = '연결됨'; lawStatus.style.color = '#16a34a'; }
                 }
             }
 
@@ -5263,9 +5310,12 @@ ${deadlineInfo ? `- 마감일 고려: ${deadlineInfo.includes('오늘 마감') ?
 
             resetApiKeyInput(provider) {
                 const input = document.getElementById(provider + 'ApiKeyInput');
+                const status = document.getElementById(provider + 'ApiKeyStatus');
                 if (input) {
-                    input.value = '';
                     input.type = 'password';
+                    input.readOnly = false;
+                    input.value = '';
+                    if (status) status.textContent = '';
                     input.focus();
                 }
             }
@@ -5337,8 +5387,10 @@ ${deadlineInfo ? `- 마감일 고려: ${deadlineInfo.includes('오늘 마감') ?
                         this.allData.geminiApiKey = '';
                         this.allData.chatgptApiKey = '';
                         this.allData.claudeApiKey = '';
+                        this.allData.lawApiKey = '';
                         this.allData.provider = 'gemini';
                         this.allData.modelMode = 'auto';
+                        this.providerConnected = { gemini: false, chatgpt: false, claude: false };
                         localStorage.removeItem(this.API_KEY_STORAGE);
                         localStorage.removeItem('appSettings_v5.2');
                         localStorage.removeItem('aiUsageStats_v6');
@@ -5371,41 +5423,23 @@ ${deadlineInfo ? `- 마감일 고려: ${deadlineInfo.includes('오늘 마감') ?
 
                 const input = document.getElementById(provider + 'ApiKeyInput');
                 const status = document.getElementById(provider + 'ApiKeyStatus');
-                if (input) { input.value = ''; input.type = 'password'; }
+                if (input) { input.value = ''; input.type = 'password'; input.readOnly = false; }
                 if (status) status.textContent = '';
+                this.providerConnected[provider] = false;
 
                 this.updateApiStatusBadge();
                 this.showToast('success', '✅', 'API 키가 삭제되었습니다');
             }
 
-            async saveApiKey() {
-                const provider = this.allData.provider;
-                const input = document.getElementById(provider + 'ApiKeyInput');
-                if (!input) return;
-
-                const apiKey = input.value.trim();
-                if (!apiKey || apiKey.includes('✅')) {
-                    this.showToast('error', '⚠️', 'API 키를 입력하세요');
-                    return;
-                }
-
-                if (provider === 'gemini') {
-                    this.allData.geminiApiKey = apiKey;
-                } else if (provider === 'chatgpt') {
-                    this.allData.chatgptApiKey = apiKey;
-                } else if (provider === 'claude') {
-                    this.allData.claudeApiKey = apiKey;
-                }
-
-                // API 키 저장 (AES-GCM 암호화)
+            // 키 저장 헬퍼 (암호화 포함)
+            async _saveApiKeys() {
                 const keys = {
-                    gemini: await this.encryptApiKey(this.allData.geminiApiKey),
-                    chatgpt: await this.encryptApiKey(this.allData.chatgptApiKey),
-                    claude: await this.encryptApiKey(this.allData.claudeApiKey)
+                    gemini:  await this.encryptApiKey(this.allData.geminiApiKey || ''),
+                    chatgpt: await this.encryptApiKey(this.allData.chatgptApiKey || ''),
+                    claude:  await this.encryptApiKey(this.allData.claudeApiKey || ''),
+                    law:     await this.encryptApiKey(this.allData.lawApiKey || '')
                 };
                 localStorage.setItem(this.API_KEY_STORAGE, JSON.stringify(keys));
-
-                // 설정 저장
                 const settings = {
                     provider: this.allData.provider,
                     selectedModel: this.allData.selectedModel,
@@ -5413,14 +5447,136 @@ ${deadlineInfo ? `- 마감일 고려: ${deadlineInfo.includes('오늘 마감') ?
                     manualModel: this.allData.manualModel
                 };
                 localStorage.setItem('appSettings_v5.2', JSON.stringify(settings));
+            }
 
-                input.value = '✅ API Key가 설정되어 있습니다.';
-                input.type = 'password';
-                
-                // 모달 닫기
-                this.closeModal('settingsModal');
-                this.updateApiStatusBadge();
-                this.showToast('success', '✅', 'API 키가 저장되었습니다');
+            // 저장 버튼 클릭 시: 자동 연결 테스트 → 성공하면 즉시 저장 (데스크탑 방식)
+            async testAndSaveApiKey(provider) {
+                const inputIds  = { gemini: 'geminiApiKeyInput', chatgpt: 'chatgptApiKeyInput', claude: 'claudeApiKeyInput' };
+                const statusIds = { gemini: 'geminiApiKeyStatus', chatgpt: 'chatgptApiKeyStatus', claude: 'claudeApiKeyStatus' };
+                const keyInput   = document.getElementById(inputIds[provider]);
+                const statusSpan = document.getElementById(statusIds[provider]);
+                const saveBtn    = document.getElementById(`${provider}SaveBtn`);
+                if (!keyInput) return;
+
+                if (keyInput.readOnly) {
+                    this.showToast('info', '💡', '새 키를 입력하려면 [키 변경] 버튼을 먼저 누르세요');
+                    return;
+                }
+                const key = keyInput.value.trim();
+                if (!key) { this.showToast('error', '⚠️', 'API 키를 입력하세요'); return; }
+
+                if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = '저장 중...'; }
+                keyInput.disabled = true;
+                if (statusSpan) { statusSpan.textContent = 'API 서버에 연결 중...'; statusSpan.style.color = 'var(--text-muted)'; }
+
+                try {
+                    const model = provider === 'gemini' ? (this.allData.selectedModel?.gemini || 'gemini-3.1-flash-lite')
+                                : provider === 'chatgpt' ? (this.allData.selectedModel?.chatgpt || 'gpt-4o-mini')
+                                : (this.allData.selectedModel?.claude || 'claude-3-5-haiku-20241022');
+
+                    if (provider === 'gemini') await this.callGemini('안녕', model, key, 0, true);
+                    else if (provider === 'chatgpt') await this.callChatGPT('안녕', model, key, true);
+                    else if (provider === 'claude') await this.callClaude('안녕', model, key, true);
+
+                    // 테스트 성공 → 즉시 저장
+                    this.allData[`${provider}ApiKey`] = key;
+                    this.providerConnected[provider] = true;
+                    this.allData.apiStatus = 'connected';
+                    await this._saveApiKeys();
+                    this.updateApiStatusBadge();
+
+                    keyInput.type = 'text';
+                    keyInput.readOnly = true;
+                    keyInput.value = '✅ API Key가 설정되어 있습니다. [키 변경] 버튼으로 수정할 수 있습니다.';
+                    if (statusSpan) { statusSpan.textContent = '연결됨'; statusSpan.style.color = '#16a34a'; }
+                    this.showToast('success', '✅', 'API 키가 저장되었습니다');
+                } catch (error) {
+                    if (statusSpan) { statusSpan.textContent = '연결 실패. API 키를 확인하세요.'; statusSpan.style.color = '#ef4444'; }
+                    let msg = error.message;
+                    if (msg.includes('503') || msg.includes('overloaded')) msg = '서버 과부하 (503). 잠시 후 다시 시도하세요.';
+                    this.showToast('error', '❌', '저장 실패: ' + msg);
+                } finally {
+                    if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = '저장'; }
+                    keyInput.disabled = false;
+                }
+            }
+
+            async saveApiKey() {
+                // 하위 호환: 현재 provider의 testAndSaveApiKey 호출
+                await this.testAndSaveApiKey(this.allData.provider);
+            }
+
+            // ── 법제처 API ────────────────────────────────────────────────
+            async saveLawApiKey() {
+                const input = document.getElementById('lawApiKeyInput');
+                if (!input) return;
+                const key = input.value.trim();
+                if (!key) { this.showToast('error', '⚠️', 'OC 인증키를 입력하세요'); return; }
+
+                const status = document.getElementById('lawApiKeyStatus');
+                const saveBtn = document.querySelector('[onclick="app.saveLawApiKey()"]');
+                if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = '테스트 중...'; }
+                if (status) { status.textContent = '법제처 연결 테스트 중...'; status.style.color = 'var(--text-muted)'; }
+
+                try {
+                    const testUrl = `https://www.law.go.kr/DRF/lawSearch.do?OC=${encodeURIComponent(key)}&target=law&type=JSON&query=${encodeURIComponent('민법')}&display=1`;
+                    const res = await fetch(testUrl, { mode: 'cors', signal: AbortSignal.timeout(8000) });
+                    if (!res.ok) throw new Error(`서버 오류 (HTTP ${res.status})`);
+                    const data = await res.json();
+                    if (!data?.LawSearch) throw new Error('응답 형식이 올바르지 않습니다');
+                    if (data.LawSearch.errYn === 'Y') throw new Error(data.LawSearch.errMsg || '인증 오류');
+
+                    this.allData.lawApiKey = key;
+                    await this._saveApiKeys();
+                    input.type = 'text';
+                    input.readOnly = true;
+                    input.value = '✅ 법제처 OC 인증키가 설정되어 있습니다. [키 변경] 버튼으로 수정할 수 있습니다.';
+                    if (status) { status.textContent = '연결됨'; status.style.color = '#16a34a'; }
+                    this.showToast('success', '✅', '법제처 연결 확인 완료 — OC 인증키가 저장되었습니다');
+                } catch(e) {
+                    if (status) { status.textContent = '연결 실패 — 인증키를 확인하세요'; status.style.color = '#ef4444'; }
+                    this.showToast('error', '❌', `연결 테스트 실패: ${e.message}`);
+                } finally {
+                    if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = '저장'; }
+                }
+            }
+
+            resetLawApiKey() {
+                const input = document.getElementById('lawApiKeyInput');
+                const status = document.getElementById('lawApiKeyStatus');
+                if (input) { input.type = 'password'; input.readOnly = false; input.value = ''; }
+                if (status) status.textContent = '';
+            }
+
+            async deleteLawApiKey() {
+                if (!confirm('법제처 OC 인증키를 삭제하시겠습니까?')) return;
+                this.allData.lawApiKey = '';
+                await this._saveApiKeys();
+                const input = document.getElementById('lawApiKeyInput');
+                const status = document.getElementById('lawApiKeyStatus');
+                if (input) { input.type = 'password'; input.readOnly = false; input.value = ''; }
+                if (status) status.textContent = '';
+                this.showToast('success', '✅', '법제처 OC 인증키가 삭제되었습니다');
+            }
+
+            async searchLawApi(query) {
+                const ocKey = this.allData.lawApiKey || '';
+                if (!ocKey) return null;
+                try {
+                    const url = `https://www.law.go.kr/DRF/lawSearch.do?OC=${encodeURIComponent(ocKey)}&target=law&type=JSON&query=${encodeURIComponent(query)}&display=3&sort=efdate`;
+                    const res = await fetch(url, { mode: 'cors', signal: AbortSignal.timeout(8000) });
+                    if (!res.ok) return null;
+                    const data = await res.json();
+                    const laws = data?.LawSearch?.law;
+                    if (!laws) return null;
+                    const list = Array.isArray(laws) ? laws : [laws];
+                    return list.slice(0, 3).map(l =>
+                        `[${l.법령명한글}] 시행일: ${l.시행일자 || '미상'}\n조문: ${l.법령ID || ''}`
+                    ).join('\n\n');
+                } catch(e) {
+                    console.warn('법제처 API 오류:', e.message);
+                    return null;
+                }
             }
 
             async testApiConnection() {
