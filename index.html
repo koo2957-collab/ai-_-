@@ -3632,6 +3632,12 @@
                 modal.style.removeProperty('padding-bottom');
                 this._drawerExpanded = false;
 
+                // body 스크롤 잠금 — 모달 뒤 체크리스트 헤더가 키보드로 밀려 움직이는 현상 방지
+                this._bodyScrollY = window.scrollY;
+                document.body.style.position = 'fixed';
+                document.body.style.top = `-${this._bodyScrollY}px`;
+                document.body.style.width = '100%';
+
                 modal.classList.remove('closing');
                 modal.classList.add('show');
 
@@ -3659,6 +3665,12 @@
                 if (!modal) return;
 
                 window.removeEventListener('popstate', this._onAiPopState);
+
+                // body 스크롤 잠금 해제 — 원래 스크롤 위치 복원
+                document.body.style.position = '';
+                document.body.style.top = '';
+                document.body.style.width = '';
+                window.scrollTo(0, this._bodyScrollY || 0);
 
                 modal.classList.add('closing');
                 setTimeout(() => {
