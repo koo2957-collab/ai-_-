@@ -315,6 +315,39 @@
         .meta-count { font-weight: 700; color: var(--text-dark); }
         .meta-pct { font-weight: 700; color: var(--accent); }
         .meta-pct.done { color: var(--success); }
+        .file-chip {
+            display: inline-flex; align-items: center; gap: 3px;
+            font-size: 0.72rem; color: var(--text-muted);
+            background: var(--bg-secondary, #f3f4f6); border-radius: 10px;
+            padding: 2px 7px; cursor: pointer; user-select: none;
+            border: 1px solid transparent; transition: border-color 0.15s;
+        }
+        .file-chip:active { border-color: var(--accent); color: var(--accent); }
+        .file-popup-overlay {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.45);
+            z-index: 2000; display: flex; align-items: flex-end;
+        }
+        .file-popup {
+            background: var(--bg-card, #fff); width: 100%; border-radius: 18px 18px 0 0;
+            padding: 0 0 env(safe-area-inset-bottom,0) 0; max-height: 70vh; overflow-y: auto;
+        }
+        .file-popup-header {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 16px 18px 10px; border-bottom: 1px solid var(--border,#e5e7eb);
+            position: sticky; top: 0; background: var(--bg-card,#fff); z-index: 1;
+        }
+        .file-popup-title { font-weight: 700; font-size: 0.95rem; }
+        .file-popup-close { font-size: 1.3rem; color: var(--text-muted); cursor: pointer; padding: 4px 8px; }
+        .file-popup-list { padding: 8px 0 16px; }
+        .file-popup-item {
+            display: flex; align-items: center; gap: 10px;
+            padding: 10px 18px; border-bottom: 1px solid var(--border,#e5e7eb);
+            font-size: 0.85rem;
+        }
+        .file-popup-item:last-child { border-bottom: none; }
+        .file-popup-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .emb-badge { font-size: 0.75rem; flex-shrink: 0; }
+        .file-popup-empty { padding: 24px 18px; color: var(--text-muted); text-align: center; font-size: 0.88rem; }
         .modal {
             display: none;
             position: fixed;
@@ -2020,7 +2053,7 @@
             const resp = await fetch(
                 `https://generativelanguage.googleapis.com/v1beta/models/${EMBEDDING_MODEL}:embedContent?key=${apiKey}`,
                 { method: 'POST', headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ model: `models/${EMBEDDING_MODEL}`, content: { parts: [{ text: text.substring(0, 2048) }] } }) }
+                  body: JSON.stringify({ model: `models/${EMBEDDING_MODEL}`, content: { parts: [{ text: text.substring(0, 2048) }] }, outputDimensionality: 768 }) }
             );
             if (resp.status === 429) throw new Error(`RATE_LIMIT:${EMBEDDING_MODEL}`);
             if (!resp.ok) throw new Error(`Embedding API ${resp.status}`);
@@ -2032,7 +2065,7 @@
 
         // 배치 임베딩 (여러 청크 한번에)
         async function generateBatchEmbeddings(texts, apiKey) {
-            const requests = texts.map(t => ({ model: `models/${EMBEDDING_MODEL}`, content: { parts: [{ text: t.substring(0, 2048) }] } }));
+            const requests = texts.map(t => ({ model: `models/${EMBEDDING_MODEL}`, content: { parts: [{ text: t.substring(0, 2048) }] }, outputDimensionality: 768 }));
             const resp = await fetch(
                 `https://generativelanguage.googleapis.com/v1beta/models/${EMBEDDING_MODEL}:batchEmbedContents?key=${apiKey}`,
                 { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ requests }) }
@@ -2065,7 +2098,7 @@
         class IndexedDBManager {
             constructor() {
                 this.dbName = 'WorkflowDB';
-                this.version = 2;
+                this.version = 3;
                 this.db = null;
             }
 
@@ -2108,6 +2141,11 @@
                             pdfStore.createIndex('projectId', 'projectId', { unique: false });
                             pdfStore.createIndex('fileName', 'fileName', { unique: false });
                             pdfStore.createIndex('parsedAt', 'parsedAt', { unique: false });
+                        }
+
+                        if (!db.objectStoreNames.contains('lawLibrary')) {
+                            const lawStore = db.createObjectStore('lawLibrary', { keyPath: 'id' });
+                            lawStore.createIndex('filename', 'filename', { unique: false });
                         }
                     };
                 });
@@ -2248,6 +2286,71 @@
                     const request = store.getAll();
                     request.onsuccess = () => resolve(request.result || []);
                     request.onerror = () => reject(request.error);
+                });
+            }
+
+            async saveLawDoc(doc) {
+                if (!this.db) return;
+                return new Promise((resolve, reject) => {
+                    const transaction = this.db.transaction(['lawLibrary'], 'readwrite');
+                    const store = transaction.objectStore('lawLibrary');
+                    const request = store.put(doc);
+                    request.onsuccess = () => resolve(request.result);
+                    request.onerror = () => reject(request.error);
+                });
+            }
+
+            async getLawDocsByIds(ids) {
+                if (!this.db || !ids || ids.length === 0) return [];
+                return new Promise((resolve, reject) => {
+                    const transaction = this.db.transaction(['lawLibrary'], 'readonly');
+                    const store = transaction.objectStore('lawLibrary');
+                    const results = [];
+                    let pending = ids.length;
+                    if (pending === 0) { resolve([]); return; }
+                    ids.forEach(id => {
+                        const req = store.get(id);
+                        req.onsuccess = () => {
+                            if (req.result) results.push(req.result);
+                            if (--pending === 0) resolve(results);
+                        };
+                        req.onerror = () => { if (--pending === 0) resolve(results); };
+                    });
+                });
+            }
+
+            async getAllLawDocs() {
+                if (!this.db) return [];
+                return new Promise((resolve, reject) => {
+                    const transaction = this.db.transaction(['lawLibrary'], 'readonly');
+                    const store = transaction.objectStore('lawLibrary');
+                    const request = store.getAll();
+                    request.onsuccess = () => resolve(request.result || []);
+                    request.onerror = () => reject(request.error);
+                });
+            }
+
+            async getProjectFilesCount(projectKey) {
+                if (!this.db || !projectKey) return 0;
+                return new Promise((resolve) => {
+                    const transaction = this.db.transaction(['projectFiles'], 'readonly');
+                    const store = transaction.objectStore('projectFiles');
+                    const index = store.index('projectKey');
+                    const req = index.count(projectKey);
+                    req.onsuccess = () => resolve(req.result || 0);
+                    req.onerror = () => resolve(0);
+                });
+            }
+
+            async getPdfDocumentsCount(projectId) {
+                if (!this.db) return 0;
+                return new Promise((resolve) => {
+                    const transaction = this.db.transaction(['pdfDocuments'], 'readonly');
+                    const store = transaction.objectStore('pdfDocuments');
+                    const index = store.index('projectId');
+                    const req = index.count(projectId);
+                    req.onsuccess = () => resolve(req.result || 0);
+                    req.onerror = () => resolve(0);
                 });
             }
         }
@@ -3291,12 +3394,98 @@
                             <div class="workflow-meta">
                                 <div class="meta-left">
                                     <span class="meta-count">${completedCount}/${checklistCount} 완료</span>
+                                    <span class="file-chip" id="fc-${workflow.id}" onclick="event.stopPropagation();app.showFilePopup(${workflow.id})">📎 ···</span>
                                 </div>
                                 <span class="meta-pct ${isDone?'done':''}">${progress}%</span>
                             </div>
                         </div>
                     `;
                 }).join('');
+
+                // 파일 수 비동기 업데이트
+                this._updateFileCountChips(filteredWorkflows.map(w => w.id));
+            }
+
+            async _updateFileCountChips(workflowIds) {
+                if (!this.dbReady || !workflowIds || workflowIds.length === 0) return;
+                for (const id of workflowIds) {
+                    const chip = document.getElementById(`fc-${id}`);
+                    if (!chip) continue;
+                    try {
+                        const [pdfCnt, fileCnt] = await Promise.all([
+                            this.dbManager.getPdfDocumentsCount(id),
+                            this.dbManager.getProjectFilesCount(`project-${id}`)
+                        ]);
+                        const total = pdfCnt + fileCnt;
+                        chip.textContent = total > 0 ? `📎 ${total}` : '📎 없음';
+                        chip.style.display = total > 0 ? '' : 'none';
+                    } catch(e) {
+                        chip.textContent = '📎';
+                    }
+                }
+            }
+
+            async showFilePopup(projectId) {
+                const overlay = document.createElement('div');
+                overlay.className = 'file-popup-overlay';
+                overlay.onclick = e => { if (e.target === overlay) overlay.remove(); };
+
+                const popup = document.createElement('div');
+                popup.className = 'file-popup';
+                popup.innerHTML = `
+                    <div class="file-popup-header">
+                        <span class="file-popup-title">📎 첨부파일 목록</span>
+                        <span class="file-popup-close" onclick="this.closest('.file-popup-overlay').remove()">×</span>
+                    </div>
+                    <div class="file-popup-list" id="fpl-${projectId}">
+                        <div class="file-popup-empty">불러오는 중…</div>
+                    </div>`;
+                overlay.appendChild(popup);
+                document.body.appendChild(overlay);
+
+                try {
+                    const [pdfDocs, projFiles] = await Promise.all([
+                        this.dbManager.getPdfDocumentsByProject(projectId),
+                        this.dbManager.getProjectFilesByProjectKey(`project-${projectId}`)
+                    ]);
+
+                    const items = [];
+                    // pdfDocuments → 임베딩 상태 포함
+                    for (const d of pdfDocs) {
+                        const chunks = d.chunkEmbeddings || [];
+                        const embCount = chunks.filter(c => c.embedding?.length > 0).length;
+                        let badge = '─';
+                        if (chunks.length > 0) {
+                            if (embCount === 0) badge = '❌';
+                            else if (embCount < chunks.length) badge = '⏳';
+                            else badge = '✅';
+                        }
+                        items.push({ name: d.filename || '문서', badge, source: 'PDF' });
+                    }
+                    // projectFiles → 임베딩 없음 (파일만)
+                    const pdfNames = new Set(pdfDocs.map(d => d.filename));
+                    for (const f of projFiles) {
+                        if (!pdfNames.has(f.fileName)) {
+                            items.push({ name: f.fileName || '파일', badge: '─', source: 'file' });
+                        }
+                    }
+
+                    const list = document.getElementById(`fpl-${projectId}`);
+                    if (!list) return;
+                    if (items.length === 0) {
+                        list.innerHTML = '<div class="file-popup-empty">첨부된 파일이 없습니다.</div>';
+                        return;
+                    }
+                    const legend = '<div style="padding:6px 18px 2px;font-size:0.72rem;color:var(--text-muted)">✅ 임베딩 완료 &nbsp;⏳ 진행중 &nbsp;❌ 실패 &nbsp;─ 미처리</div>';
+                    list.innerHTML = legend + items.map(it => `
+                        <div class="file-popup-item">
+                            <span class="emb-badge">${it.badge}</span>
+                            <span class="file-popup-name" title="${this.escapeHtml(it.name)}">${this.escapeHtml(it.name)}</span>
+                        </div>`).join('');
+                } catch(e) {
+                    const list = document.getElementById(`fpl-${projectId}`);
+                    if (list) list.innerHTML = '<div class="file-popup-empty">불러오기 실패</div>';
+                }
             }
 
             calculateProgress(workflow) {
@@ -4079,6 +4268,23 @@
                 if (useWorkflowContext) {
                     const wf = this.getCurrentWorkflow();
                     if (wf) {
+                        // 0-a) 법령매뉴얼 연결 문서: linkedLibraryDocs 배열이 있으면 lawLibrary 스토어에서 로드
+                        try {
+                            const linkedIds = wf.linkedLibraryDocs || wf.linkedLawDocs || [];
+                            if (linkedIds.length > 0) {
+                                const lawDocs = await this.dbManager.getLawDocsByIds(linkedIds);
+                                if (lawDocs.length > 0) {
+                                    context += `[법령매뉴얼 연결 문서]\n`;
+                                    for (const ld of lawDocs.slice(0, 3)) {
+                                        context += `📗 ${ld.filename || '법령문서'}\n`;
+                                        const excerpt = ld.content ? ld.content.substring(0, 2000) : (ld.summary || '');
+                                        if (excerpt) context += `${truncate(excerpt, 2000)}\n\n`;
+                                    }
+                                    context += `--- 법령매뉴얼 끝 ---\n\n`;
+                                }
+                            }
+                        } catch(e) { /* 법령 로드 실패 무시 */ }
+
                         // 0) 근거 문서(PDF) 우선: 공문/법령/지침 성격 문서를 먼저 발췌
                         try {
                             const docs = await this.getProjectDocs(wf.id);
@@ -5355,6 +5561,66 @@ ${deadlineInfo ? `- 마감일 고려: ${deadlineInfo.includes('오늘 마감') ?
                     this.displayWorkflows();
                     setTimeout(() => { this.lastImportedWorkflowIds = []; this.displayWorkflows(); }, 3000);
 
+                    // ── 법령매뉴얼 문서 처리 (lawLibraryDocs / linkedLibraryDocsData) ──
+                    const lawDocs = packageData.lawLibraryDocs || packageData.linkedLibraryDocsData || packageData.lawDocs || null;
+                    if (lawDocs && Array.isArray(lawDocs)) {
+                        for (const ldoc of lawDocs) {
+                            if (!ldoc || !ldoc.id) continue;
+                            try {
+                                // lawLibrary 스토어에 저장
+                                await this.dbManager.saveLawDoc({
+                                    id: ldoc.id,
+                                    filename: ldoc.filename || ldoc.name || '법령문서',
+                                    content: ldoc.content || ldoc.text || '',
+                                    parsedAt: ldoc.parsedAt || new Date().toISOString(),
+                                    pageCount: ldoc.pageCount || 1,
+                                    summary: ldoc.summary || ''
+                                });
+
+                                // 이 법령을 링크하는 프로젝트에 pdfDocuments로도 복사
+                                const linkedProjectIds = new Set();
+                                for (const p of packageData.projects || []) {
+                                    const linkedIds = p.linkedLibraryDocs || p.linkedLawDocs || [];
+                                    if (linkedIds.includes(ldoc.id)) {
+                                        // 새로 할당된 ID를 찾기 위해 originalId 매핑 사용
+                                        const matchedWf = this.allData.workflows.find(
+                                            w => w.originalId && String(w.originalId) === String(p.id)
+                                        );
+                                        if (matchedWf) linkedProjectIds.add(matchedWf.id);
+                                    }
+                                }
+                                // checklist details에서 lawLibraryId 참조 탐색
+                                if (packageData.checklistDetailsMap) {
+                                    for (const [key, det] of Object.entries(packageData.checklistDetailsMap)) {
+                                        const lawRefs = det?.lawLibraryIds || det?.linkedLawIds || [];
+                                        if (lawRefs.includes(ldoc.id)) {
+                                            const match = key.match(/^(\d+(?:\.\d+)?)-/);
+                                            if (match) {
+                                                const matchedWf = this.allData.workflows.find(
+                                                    w => w.originalId && String(w.originalId) === match[1]
+                                                );
+                                                if (matchedWf) linkedProjectIds.add(matchedWf.id);
+                                            }
+                                        }
+                                    }
+                                }
+
+                                const content = ldoc.content || ldoc.text || '';
+                                if (content.length >= 50) {
+                                    for (const pid of linkedProjectIds) {
+                                        attachmentsToProcess.push({
+                                            projectId: pid,
+                                            filename: ldoc.filename || ldoc.name || '법령문서',
+                                            blob: new Blob([content], { type: 'text/plain' })
+                                        });
+                                    }
+                                }
+                            } catch(e) {
+                                console.warn('법령매뉴얼 문서 처리 오류:', e);
+                            }
+                        }
+                    }
+
                     // ── 첨부파일 파싱 + 임베딩 (백그라운드) ──
                     if (attachmentsToProcess.length > 0) {
                         const apiKey = this.allData.provider === 'gemini' ? this.allData.geminiApiKey : '';
@@ -6523,7 +6789,7 @@ ${pdfContent.length > 100000 ? pdfContent.substring(0, 100000) + '\n\n[중략: �
                     const chunks = createSemanticChunks(doc.content, 800, 100);
                     if (chunks.length === 0) return false;
 
-                    const BATCH_SIZE = 10;
+                    const BATCH_SIZE = 3;
                     const embeddedChunks = [];
                     for (let i = 0; i < chunks.length; i += BATCH_SIZE) {
                         const batch = chunks.slice(i, i + BATCH_SIZE);
@@ -6533,6 +6799,7 @@ ${pdfContent.length > 100000 ? pdfContent.substring(0, 100000) + '\n\n[중략: �
                         } catch(e) {
                             batch.forEach(chunk => embeddedChunks.push({ ...chunk, embedding: null }));
                         }
+                        if (i + BATCH_SIZE < chunks.length) await new Promise(r => setTimeout(r, 20000));
                     }
 
                     await this.dbManager.savePdfDocument({
@@ -6567,7 +6834,7 @@ ${pdfContent.length > 100000 ? pdfContent.substring(0, 100000) + '\n\n[중략: �
 
                         if (apiKey) {
                             const chunks = createSemanticChunks(text, 800, 100);
-                            const BATCH_SIZE = 10;
+                            const BATCH_SIZE = 3;
                             const embeddedChunks = [];
                             for (let i = 0; i < chunks.length; i += BATCH_SIZE) {
                                 const batch = chunks.slice(i, i + BATCH_SIZE);
@@ -6577,6 +6844,7 @@ ${pdfContent.length > 100000 ? pdfContent.substring(0, 100000) + '\n\n[중략: �
                                 } catch(e) {
                                     batch.forEach(chunk => embeddedChunks.push(chunk));
                                 }
+                                if (i + BATCH_SIZE < chunks.length) await new Promise(r => setTimeout(r, 20000));
                             }
                             docData.chunkEmbeddings = embeddedChunks;
                             docData.embeddedAt = new Date().toISOString();
@@ -6613,12 +6881,12 @@ ${pdfContent.length > 100000 ? pdfContent.substring(0, 100000) + '\n\n[중략: �
                             .filter(i => !(doc.chunkEmbeddings[i].embedding?.length > 0));
 
                         const updatedChunks = [...doc.chunkEmbeddings];
-                        for (let i = 0; i < failedIndices.length; i += 10) {
+                        for (let i = 0; i < failedIndices.length; i += 3) {
                             if (_remainingRPD() <= 0) break;
-                            const batchIndices = failedIndices.slice(i, i + 10);
+                            const batchIndices = failedIndices.slice(i, i + 3);
                             const batchTexts = batchIndices.map(idx => doc.chunkEmbeddings[idx].text);
                             try {
-                                await new Promise(r => setTimeout(r, EMBEDDING_RPM_DELAY));
+                                await new Promise(r => setTimeout(r, 20000));
                                 const vecs = await generateBatchEmbeddings(batchTexts, apiKey);
                                 batchIndices.forEach((idx, j) => {
                                     if (vecs[j]?.length > 0) {
