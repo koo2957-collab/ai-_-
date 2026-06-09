@@ -552,14 +552,14 @@
             left: 0 !important; right: 0 !important;
             width: 100% !important; max-width: 100% !important;
             height: 72vh;
-            max-height: 90vh !important;
+            max-height: 100vh !important;
             border-radius: 20px 20px 0 0 !important;
             margin: 0 !important;
             overflow: hidden !important;
             display: flex !important; flex-direction: column !important;
             will-change: transform;
             transform: translateY(100%) !important;
-            transition: transform 0.42s cubic-bezier(0.16, 1, 0.3, 1), bottom 0.18s ease !important;
+            transition: transform 0.42s cubic-bezier(0.16, 1, 0.3, 1), bottom 0.2s ease, height 0.28s ease !important;
         }
         #aiPartnerModal.show .modal-content {
             transform: translateY(0) !important;
@@ -572,10 +572,10 @@
         /* 드래그 핸들 표시 */
         #aiPartnerModal .ai-sheet-handle { display: block !important; }
 
-        /* 헤더 상단 radius 복원 */
+        /* 헤더 상단 radius 복원 / 전체화면 시 노치 대응 */
         #aiPartnerModal .ai-sheet-header {
             border-radius: 20px 20px 0 0 !important;
-            padding-top: 6px !important;
+            padding-top: max(6px, env(safe-area-inset-top, 6px)) !important;
         }
 
         /* 입력창 하단 safe area */
@@ -3579,9 +3579,12 @@
                         const keyboardH = Math.max(0, window.innerHeight - window.visualViewport.height);
                         sh.style.bottom = keyboardH + 'px';
                         if (keyboardH > 50) {
-                            sh.style.height = Math.round(window.visualViewport.height * 0.96) + 'px';
-                        } else {
-                            sh.style.height = '';
+                            // 키보드 올라옴: 가용 공간 전체 채움
+                            sh.style.height = Math.round(window.visualViewport.height) + 'px';
+                            this._drawerExpanded = true;
+                        } else if (this._drawerExpanded) {
+                            // 키보드 내려간 후: 전체화면으로 유지 (72vh 드로어로 돌아가지 않음)
+                            sh.style.height = Math.round(window.visualViewport.height) + 'px';
                         }
                         requestAnimationFrame(() => this.scrollAiChatToBottom());
                     };
@@ -3603,9 +3606,10 @@
                 const modal = document.getElementById('aiPartnerModal');
                 if (!modal) return;
 
-                // 키보드 잔여 높이·위치 초기화
+                // 키보드 잔여 높이·위치 초기화, 드로어 상태 리셋
                 const sheet = document.getElementById('aiPartnerSheet');
                 if (sheet) { sheet.style.height = ''; sheet.style.bottom = ''; }
+                this._drawerExpanded = false;
 
                 modal.classList.remove('closing');
                 modal.classList.add('show');
@@ -3635,14 +3639,13 @@
 
                 window.removeEventListener('popstate', this._onAiPopState);
 
-                // 키보드 높이·위치 오버라이드 리셋
-                const sheetEl = document.getElementById('aiPartnerSheet');
-                if (sheetEl) { sheetEl.style.height = ''; sheetEl.style.bottom = ''; }
-
                 modal.classList.add('closing');
                 setTimeout(() => {
                     modal.classList.remove('show', 'closing');
-                    // 체크리스트가 열려 있으면 FAB 다시 표시
+                    // 애니메이션 완료 후 리셋 (먼저 리셋하면 전체화면→72vh 점프 발생)
+                    const sheetEl = document.getElementById('aiPartnerSheet');
+                    if (sheetEl) { sheetEl.style.height = ''; sheetEl.style.bottom = ''; }
+                    this._drawerExpanded = false;
                     if (this._checklistOpen) {
                         document.getElementById('aiFab')?.classList.remove('hidden');
                     }
