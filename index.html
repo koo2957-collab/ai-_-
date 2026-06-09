@@ -559,7 +559,7 @@
             display: flex !important; flex-direction: column !important;
             will-change: transform;
             transform: translateY(100%) !important;
-            transition: transform 0.42s cubic-bezier(0.16, 1, 0.3, 1), bottom 0.2s ease !important;
+            transition: transform 0.42s cubic-bezier(0.16, 1, 0.3, 1), height 0.22s ease !important;
         }
         #aiPartnerModal.show .modal-content {
             transform: translateY(0) !important;
@@ -3576,25 +3576,30 @@
                         const sh = document.getElementById('aiPartnerSheet');
                         const md = document.getElementById('aiPartnerModal');
                         if (!sh || !md?.classList.contains('show')) return;
-                        const keyboardH = Math.max(0, window.innerHeight - window.visualViewport.height);
+                        const vv = window.visualViewport;
+                        // iOS: 키보드 등장 시 offsetTop > 0 (레이아웃 뷰포트가 위로 스크롤됨)
+                        // top = offsetTop 보정 없으면 fixed 요소가 시각 뷰포트 위로 솟아나옴
+                        // Android: offsetTop = 0, height만 축소
+                        const keyboardH = Math.max(0, window.innerHeight - vv.offsetTop - vv.height);
 
                         if (keyboardH > 50) {
-                            // 키보드 올라옴: top=0 고정 + bottom=키보드높이, height=auto
-                            // → 상단이 절대 화면 밖으로 나가지 않음 (bottom만 변동)
-                            sh.style.top = '0px';
-                            sh.style.bottom = keyboardH + 'px';
-                            sh.style.height = 'auto';
+                            // 키보드 표시: visual viewport 영역을 픽셀로 정확히 채움
+                            sh.style.top = Math.round(vv.offsetTop) + 'px';
+                            sh.style.height = Math.round(vv.height) + 'px';
+                            sh.style.bottom = '';
                             this._drawerExpanded = true;
                         } else if (this._drawerExpanded) {
-                            // 키보드 내려간 후: 전체화면 유지
+                            // 키보드 내려간 후: 전체화면 유지 (offsetTop ≈ 0)
                             sh.style.top = '0px';
-                            sh.style.bottom = '0px';
-                            sh.style.height = 'auto';
+                            sh.style.height = Math.round(vv.height) + 'px';
+                            sh.style.bottom = '';
                         }
-                        // 드로어 모드(인라인 없음): CSS height:72vh, bottom:0 적용
+                        // 드로어 초기 상태(inline 없음): CSS height:72vh, bottom:0 적용
                         requestAnimationFrame(() => this.scrollAiChatToBottom());
                     };
+                    // iOS는 scroll 이벤트로 키보드 감지, Android는 resize. 둘 다 필수
                     window.visualViewport.addEventListener('resize', syncToKeyboard);
+                    window.visualViewport.addEventListener('scroll', syncToKeyboard);
                     this._vvSyncHeight = syncToKeyboard;
                 }
 
