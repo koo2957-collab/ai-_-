@@ -526,15 +526,23 @@
         }
         .ai-fab:active { transform: translateY(-1px); }
 
-        /* ── AI 파트너: 하단 플로팅 드로어 ── */
+        /* ── AI 파트너: 하단 플로팅 드로어 (Ionic/Telegram 표준 패턴) ──
+         * sheet = position:relative (오버레이 내부 플로우 요소)
+         * 키보드 대응 = 오버레이의 padding-bottom으로만 처리
+         * → top/bottom/height 3중 충돌 원천 차단 */
         #aiPartnerModal {
             background: rgba(0, 0, 0, 0) !important;
-            display: block !important;
+            /* flex: sheet를 하단에 배치 + overflow:hidden으로 슬라이드 애니메이션 클리핑 */
+            display: flex !important;
+            flex-direction: column !important;
+            justify-content: flex-end !important;
+            overflow: hidden !important;
             pointer-events: none;
             position: fixed; inset: 0; z-index: 1500;
             opacity: 1 !important;
             visibility: visible !important;
             transition: background 0.35s ease !important;
+            /* padding-bottom은 JS가 키보드 높이로 조정 */
         }
         #aiPartnerModal.show {
             pointer-events: auto;
@@ -546,13 +554,12 @@
         }
 
         #aiPartnerModal .modal-content {
-            /* 하단 드로어 — bottom/height는 JS가 키보드에 맞춰 조정하므로 !important 제외 */
-            position: fixed !important;
-            bottom: 0;
-            left: 0 !important; right: 0 !important;
+            /* position:relative — 오버레이 flex 흐름에서 자연스럽게 하단 배치 */
+            position: relative !important;
             width: 100% !important; max-width: 100% !important;
-            height: 72vh;
-            max-height: 100vh !important;
+            height: 72vh;            /* JS가 조정, !important 없음 */
+            max-height: 100% !important;  /* 오버레이 높이 초과 방지 */
+            flex-shrink: 0 !important;   /* 오버레이 flex에서 축소 방지 */
             border-radius: 20px 20px 0 0 !important;
             margin: 0 !important;
             overflow: hidden !important;
@@ -3567,9 +3574,9 @@
 
                 // 전체화면 — 드래그 닫기 대신 헤더 닫기 버튼 / 뒤로가기 사용
 
-                // ── 모바일 키보드 대응: Visual Viewport API ──
-                // 키보드가 올라오면 드로어를 bottom 오프셋으로 밀어 올림
-                // (transform 애니메이션과 분리하여 !important 충돌 없음)
+                // ── 모바일 키보드 대응: Ionic/Telegram 표준 패턴 ──
+                // 오버레이(fixed) padding-bottom = 키보드 높이 → sheet(relative) 자동 상승
+                // top/bottom/height 3중 설정 완전 제거 → Samsung/iOS 모두 동일하게 동작
                 if (window.visualViewport && !this._vvListenerAdded) {
                     this._vvListenerAdded = true;
                     const syncToKeyboard = () => {
@@ -3577,24 +3584,19 @@
                         const md = document.getElementById('aiPartnerModal');
                         if (!sh || !md?.classList.contains('show')) return;
                         const vv = window.visualViewport;
-                        // iOS: 키보드 등장 시 offsetTop > 0 (레이아웃 뷰포트가 위로 스크롤됨)
-                        // top = offsetTop 보정 없으면 fixed 요소가 시각 뷰포트 위로 솟아나옴
-                        // Android: offsetTop = 0, height만 축소
+                        // Android: height 축소로 키보드 감지. iOS: offsetTop > 0 추가 가능
                         const keyboardH = Math.max(0, window.innerHeight - vv.offsetTop - vv.height);
 
                         if (keyboardH > 50) {
-                            // 키보드 표시: visual viewport 영역을 픽셀로 정확히 채움
-                            sh.style.top = Math.round(vv.offsetTop) + 'px';
+                            // 키보드 표시: 오버레이 하단에 키보드 높이만큼 여백 → sheet 자연스럽게 상승
+                            md.style.paddingBottom = Math.round(keyboardH) + 'px';
                             sh.style.height = Math.round(vv.height) + 'px';
-                            sh.style.bottom = '';
                             this._drawerExpanded = true;
                         } else if (this._drawerExpanded) {
-                            // 키보드 내려간 후: 전체화면 유지 (offsetTop ≈ 0)
-                            sh.style.top = '0px';
+                            // 키보드 내려간 후: 전체화면 유지
+                            md.style.paddingBottom = '0px';
                             sh.style.height = Math.round(vv.height) + 'px';
-                            sh.style.bottom = '';
                         }
-                        // 드로어 초기 상태(inline 없음): CSS height:72vh, bottom:0 적용
                         requestAnimationFrame(() => this.scrollAiChatToBottom());
                     };
                     // iOS는 scroll 이벤트로 키보드 감지, Android는 resize. 둘 다 필수
@@ -3619,7 +3621,8 @@
 
                 // 키보드 잔여 높이·위치 초기화, 드로어 상태 리셋
                 const sheet = document.getElementById('aiPartnerSheet');
-                if (sheet) { sheet.style.top = ''; sheet.style.height = ''; sheet.style.bottom = ''; }
+                if (sheet) { sheet.style.height = ''; }
+                modal.style.paddingBottom = '';
                 this._drawerExpanded = false;
 
                 modal.classList.remove('closing');
@@ -3655,7 +3658,9 @@
                     modal.classList.remove('show', 'closing');
                     // 애니메이션 완료 후 리셋 (먼저 리셋하면 전체화면→72vh 점프 발생)
                     const sheetEl = document.getElementById('aiPartnerSheet');
-                    if (sheetEl) { sheetEl.style.top = ''; sheetEl.style.height = ''; sheetEl.style.bottom = ''; }
+                    if (sheetEl) { sheetEl.style.height = ''; }
+                    const modalEl = document.getElementById('aiPartnerModal');
+                    if (modalEl) { modalEl.style.paddingBottom = ''; }
                     this._drawerExpanded = false;
                     if (this._checklistOpen) {
                         document.getElementById('aiFab')?.classList.remove('hidden');
