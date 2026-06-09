@@ -3596,13 +3596,12 @@
                         const keyboardH = Math.max(0, window.innerHeight - vv.offsetTop - vv.height);
 
                         if (keyboardH > 50) {
-                            // 키보드 표시: 오버레이 하단에 키보드 높이만큼 여백 → sheet 자연스럽게 상승
-                            md.style.paddingBottom = Math.round(keyboardH) + 'px';
+                            // padding:0!important를 덮으려면 setProperty('important') 필수
+                            md.style.setProperty('padding-bottom', Math.round(keyboardH) + 'px', 'important');
                             sh.style.height = Math.round(vv.height) + 'px';
                             this._drawerExpanded = true;
                         } else if (this._drawerExpanded) {
-                            // 키보드 내려간 후: 전체화면 유지
-                            md.style.paddingBottom = '0px';
+                            md.style.setProperty('padding-bottom', '0px', 'important');
                             sh.style.height = Math.round(vv.height) + 'px';
                         }
                         requestAnimationFrame(() => this.scrollAiChatToBottom());
@@ -3630,7 +3629,7 @@
                 // 키보드 잔여 높이·위치 초기화, 드로어 상태 리셋
                 const sheet = document.getElementById('aiPartnerSheet');
                 if (sheet) { sheet.style.height = ''; }
-                modal.style.paddingBottom = '';
+                modal.style.removeProperty('padding-bottom');
                 this._drawerExpanded = false;
 
                 modal.classList.remove('closing');
@@ -3668,7 +3667,7 @@
                     const sheetEl = document.getElementById('aiPartnerSheet');
                     if (sheetEl) { sheetEl.style.height = ''; }
                     const modalEl = document.getElementById('aiPartnerModal');
-                    if (modalEl) { modalEl.style.paddingBottom = ''; }
+                    if (modalEl) { modalEl.style.removeProperty('padding-bottom'); }
                     this._drawerExpanded = false;
                     if (this._checklistOpen) {
                         document.getElementById('aiFab')?.classList.remove('hidden');
