@@ -541,10 +541,12 @@
         #aiPartnerModal .modal-content {
             /* 전체화면 */
             position: fixed !important;
-            inset: 0 !important;
-            left: 0 !important; bottom: 0 !important;
+            top: 0 !important; left: 0 !important; right: 0 !important;
             width: 100% !important; max-width: 100% !important;
-            height: 100% !important; max-height: 100% !important;
+            /* dvh: 키보드를 고려한 동적 뷰포트 높이 (Chrome 108+, iOS Safari 15.4+) */
+            height: 100% !important;
+            height: 100dvh !important;
+            max-height: 100dvh !important;
             border-radius: 0 !important; margin: 0 !important;
             overflow: hidden !important;
             display: flex !important; flex-direction: column !important;
@@ -3559,6 +3561,21 @@
 
                 // 전체화면 — 드래그 닫기 대신 헤더 닫기 버튼 / 뒤로가기 사용
 
+                // ── 모바일 키보드 대응: Visual Viewport API ──
+                // dvh 미지원 구형 iOS Safari 등에서 키보드 올라올 때 입력창이 가려지는 문제 해결
+                if (window.visualViewport && !this._vvListenerAdded) {
+                    this._vvListenerAdded = true;
+                    const syncHeight = () => {
+                        const sh = document.getElementById('aiPartnerSheet');
+                        const md = document.getElementById('aiPartnerModal');
+                        if (!sh || !md?.classList.contains('show')) return;
+                        sh.style.height = Math.round(window.visualViewport.height) + 'px';
+                        requestAnimationFrame(() => this.scrollAiChatToBottom());
+                    };
+                    window.visualViewport.addEventListener('resize', syncHeight);
+                    this._vvSyncHeight = syncHeight;
+                }
+
                 // 초기 컨텍스트 UI
                 this.updateAiPartnerContextUI();
             }
@@ -3568,8 +3585,15 @@
                 const modal = document.getElementById('aiPartnerModal');
                 if (!modal) return;
 
+                // 키보드 잔여 높이 초기화
+                const sheet = document.getElementById('aiPartnerSheet');
+                if (sheet) sheet.style.height = '';
+
                 modal.classList.remove('closing');
                 modal.classList.add('show');
+
+                // 슬라이드 인 후 즉시 키보드 높이 동기화 (포커스 전 선행 실행)
+                if (this._vvSyncHeight) setTimeout(this._vvSyncHeight, 50);
 
                 // 뒤로가기 감지
                 history.pushState({ aiPartner: true }, '');
@@ -3592,6 +3616,10 @@
                 if (!modal) return;
 
                 window.removeEventListener('popstate', this._onAiPopState);
+
+                // 키보드 높이 오버라이드 리셋
+                const sheetEl = document.getElementById('aiPartnerSheet');
+                if (sheetEl) sheetEl.style.height = '';
 
                 modal.classList.add('closing');
                 setTimeout(() => {
