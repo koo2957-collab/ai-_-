@@ -1469,6 +1469,253 @@
         }
         .empty-step-text { color: var(--text-dark); line-height: 1.55; flex: 1; }
         .empty-step-sub { font-size: 0.74rem; color: var(--text-muted); margin-top: 2px; }
+
+        /* ===== 저장소 모달 ===== */
+        .repo-modal-content { max-width: 520px; padding: 0; overflow: hidden; }
+        .repo-tab-bar {
+            display: flex; border-bottom: 1px solid var(--border-light);
+            background: var(--bg-light); flex-shrink: 0;
+        }
+        .repo-tab {
+            flex: 1; padding: 11px 6px; border: none; background: none;
+            font-family: inherit; font-size: 0.83rem; font-weight: 600;
+            color: var(--text-muted); cursor: pointer; border-bottom: 2px solid transparent;
+            transition: color 0.15s, border-color 0.15s; letter-spacing: -0.01em;
+        }
+        .repo-tab.active { color: var(--accent); border-bottom-color: var(--accent); background: white; }
+        .repo-tab-body { padding: 0; overflow-y: auto; max-height: calc(82vh - 100px); }
+        .repo-upload-zone {
+            display: flex; align-items: center; gap: 10px;
+            padding: 12px 16px; border-bottom: 1px solid var(--border-subtle);
+            background: rgba(37,99,235,0.03);
+        }
+        .repo-upload-btn {
+            display: flex; align-items: center; gap: 6px;
+            padding: 8px 14px; background: var(--accent); color: white;
+            border: none; border-radius: 8px; font-family: inherit;
+            font-size: 0.82rem; font-weight: 700; cursor: pointer;
+            white-space: nowrap; flex-shrink: 0; touch-action: manipulation;
+        }
+        .repo-upload-btn:active { opacity: 0.85; }
+        .repo-upload-hint { font-size: 0.75rem; color: var(--text-muted); line-height: 1.5; }
+        .repo-search-wrap {
+            padding: 10px 14px; border-bottom: 1px solid var(--border-subtle);
+            display: flex; align-items: center; gap: 8px;
+        }
+        .repo-search-input {
+            flex: 1; padding: 7px 10px; border: 1px solid var(--border-light);
+            border-radius: 7px; font-family: inherit; font-size: 0.84rem;
+            outline: none; background: white;
+        }
+        .repo-search-input:focus { border-color: var(--accent); }
+        .repo-item {
+            display: flex; align-items: center; gap: 10px;
+            padding: 11px 14px; border-bottom: 1px solid var(--border-subtle);
+            transition: background 0.1s;
+        }
+        .repo-item:last-child { border-bottom: none; }
+        .repo-item:active { background: var(--bg-subtle); }
+        .repo-item-icon {
+            width: 34px; height: 34px; border-radius: 8px; flex-shrink: 0;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1rem;
+        }
+        .repo-item-icon.law { background: rgba(37,99,235,0.08); }
+        .repo-item-icon.form { background: rgba(5,150,105,0.08); }
+        .repo-item-info { flex: 1; min-width: 0; }
+        .repo-item-name {
+            font-size: 0.85rem; font-weight: 600; color: var(--text-dark);
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .repo-item-meta { font-size: 0.72rem; color: var(--text-muted); margin-top: 2px; }
+        .repo-item-actions { display: flex; gap: 6px; flex-shrink: 0; }
+        .repo-action-btn {
+            width: 30px; height: 30px; border-radius: 7px; border: none;
+            background: var(--bg-subtle); color: var(--text-muted);
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer; transition: all 0.15s; touch-action: manipulation;
+        }
+        .repo-action-btn.download { color: var(--accent); background: rgba(37,99,235,0.07); }
+        .repo-action-btn.delete { color: #ef4444; background: rgba(239,68,68,0.07); }
+        .repo-action-btn:active { opacity: 0.7; transform: scale(0.93); }
+        .repo-empty {
+            padding: 40px 20px; text-align: center;
+            color: var(--text-muted); font-size: 0.85rem;
+        }
+        .repo-empty-icon { font-size: 2rem; margin-bottom: 10px; }
+
+        /* ===== 항목 상세 시트 ===== */
+        .item-detail-sheet {
+            background: white; border-radius: 20px 20px 0 0;
+            width: 100%; max-width: 560px;
+            max-height: 88vh; overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            padding: 0 0 calc(20px + env(safe-area-inset-bottom,0px));
+            animation: agSlideUp 0.3s cubic-bezier(0.16,1,0.3,1);
+        }
+        .ids-handle {
+            width: 38px; height: 4px; border-radius: 999px;
+            background: var(--border-light); margin: 12px auto 0;
+        }
+        .ids-header {
+            padding: 14px 16px 12px; border-bottom: 1px solid var(--border-subtle);
+            display: flex; align-items: center; justify-content: space-between; gap: 10px;
+            position: sticky; top: 0; background: white; z-index: 5;
+        }
+        .ids-title {
+            font-size: 0.9rem; font-weight: 700; color: var(--text-dark);
+            letter-spacing: -0.01em; flex: 1; white-space: nowrap;
+            overflow: hidden; text-overflow: ellipsis;
+        }
+        .ids-close {
+            width: 28px; height: 28px; border: none; background: var(--bg-subtle);
+            border-radius: 7px; color: var(--text-muted); font-size: 1rem;
+            cursor: pointer; display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0;
+        }
+        .ids-section {
+            padding: 14px 16px; border-bottom: 1px solid var(--border-subtle);
+        }
+        .ids-section:last-child { border-bottom: none; }
+        .ids-section-label {
+            font-size: 0.67rem; font-weight: 700; color: var(--text-muted);
+            text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 8px;
+            display: flex; align-items: center; justify-content: space-between;
+        }
+        .ids-add-btn {
+            font-size: 0.72rem; font-weight: 700; color: var(--accent);
+            background: rgba(37,99,235,0.07); border: 1px solid rgba(37,99,235,0.18);
+            border-radius: 5px; padding: 2px 8px; cursor: pointer;
+            display: flex; align-items: center; gap: 4px; touch-action: manipulation;
+        }
+        .ids-add-btn:active { background: rgba(37,99,235,0.15); }
+        .ids-textarea {
+            width: 100%; border: 1px solid var(--border-light); border-radius: 8px;
+            padding: 9px 10px; font-family: inherit; font-size: 0.84rem;
+            line-height: 1.55; resize: none; outline: none;
+            color: var(--text-dark); background: white;
+            min-height: 68px;
+        }
+        .ids-textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(37,99,235,0.08); }
+        .ids-save-row {
+            display: flex; justify-content: flex-end; margin-top: 7px;
+        }
+        .ids-save-btn {
+            padding: 6px 16px; background: var(--accent); color: white;
+            border: none; border-radius: 7px; font-family: inherit;
+            font-size: 0.8rem; font-weight: 700; cursor: pointer;
+            touch-action: manipulation;
+        }
+        .ids-save-btn:active { opacity: 0.85; }
+        .ids-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+        .ids-chip {
+            display: inline-flex; align-items: center; gap: 5px;
+            padding: 4px 10px 4px 10px; border-radius: 20px;
+            font-size: 0.75rem; font-weight: 600; cursor: default;
+            max-width: 200px;
+        }
+        .ids-chip.law {
+            background: rgba(37,99,235,0.08); color: var(--accent);
+            border: 1px solid rgba(37,99,235,0.2);
+        }
+        .ids-chip.form {
+            background: rgba(5,150,105,0.08); color: #059669;
+            border: 1px solid rgba(5,150,105,0.22);
+        }
+        .ids-chip-name {
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 160px;
+        }
+        .ids-chip-del {
+            flex-shrink: 0; width: 14px; height: 14px; border-radius: 50%;
+            background: rgba(0,0,0,0.1); border: none; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.65rem; line-height: 1; color: inherit; padding: 0;
+            touch-action: manipulation;
+        }
+        .ids-chip-del:active { background: rgba(0,0,0,0.2); }
+        .ids-action-row {
+            display: flex; gap: 8px; padding: 12px 16px 4px;
+        }
+        .ids-skip-btn {
+            flex: 1; padding: 10px; border: 1.5px solid #94a3b8;
+            border-radius: 9px; background: none; color: #64748b;
+            font-family: inherit; font-size: 0.85rem; font-weight: 600;
+            cursor: pointer; display: flex; align-items: center; justify-content: center;
+            gap: 6px; touch-action: manipulation;
+        }
+        .ids-skip-btn:active { background: #f1f5f9; }
+        .ids-skip-btn.active { border-color: #e2e8f0; color: #94a3b8; }
+        .ids-ai-btn {
+            flex: 1; padding: 10px; background: linear-gradient(135deg, #4c1d95, #8b5cf6);
+            border: none; border-radius: 9px; color: white;
+            font-family: inherit; font-size: 0.85rem; font-weight: 700;
+            cursor: pointer; display: flex; align-items: center; justify-content: center;
+            gap: 6px; touch-action: manipulation;
+        }
+        .ids-ai-btn:active { opacity: 0.88; }
+
+        /* 체크리스트 카드 팁 표시 */
+        .cl-tip-bar {
+            display: flex; align-items: flex-start; gap: 5px;
+            padding: 0 12px 9px 54px;
+            font-size: 0.72rem; color: #d97706; line-height: 1.5;
+        }
+        .cl-tip-bar-ico { flex-shrink: 0; margin-top: 1px; }
+        /* 결과 기록 표시 */
+        .cl-result-bar {
+            display: flex; align-items: flex-start; gap: 5px;
+            padding: 0 12px 9px 54px;
+            font-size: 0.72rem; color: #059669; line-height: 1.5;
+        }
+        /* 상세 버튼 */
+        .cl-detail-btn {
+            flex-shrink: 0; width: 30px; height: 30px; border-radius: 7px;
+            background: rgba(28,50,82,0.05); border: 1px solid rgba(28,50,82,0.08);
+            color: var(--text-muted); display: flex; align-items: center;
+            justify-content: center; cursor: pointer;
+            transition: all 0.15s; touch-action: manipulation;
+        }
+        .cl-detail-btn:active { background: var(--bg-subtle); color: var(--accent); }
+
+        /* 저장소 링크 피커 */
+        .link-picker-item {
+            display: flex; align-items: center; gap: 12px;
+            padding: 12px 16px; cursor: pointer;
+            border-bottom: 1px solid var(--border-subtle);
+            transition: background 0.1s;
+        }
+        .link-picker-item:active { background: var(--bg-subtle); }
+        .link-picker-item:last-child { border-bottom: none; }
+        .link-picker-check {
+            width: 18px; height: 18px; border-radius: 5px; flex-shrink: 0;
+            border: 2px solid var(--border-light); background: white;
+            display: flex; align-items: center; justify-content: center; transition: all 0.15s;
+        }
+        .link-picker-check.checked { background: var(--accent); border-color: var(--accent); }
+        .link-picker-name { flex: 1; font-size: 0.85rem; font-weight: 500; color: var(--text-dark); }
+        .link-picker-meta { font-size: 0.72rem; color: var(--text-muted); }
+
+        /* 건너뛰기 사유 입력 */
+        .skip-sheet {
+            background: white; border-radius: 20px 20px 0 0;
+            width: 100%; max-width: 500px;
+            padding: 0 0 calc(20px + env(safe-area-inset-bottom,0px));
+            animation: agSlideUp 0.25s cubic-bezier(0.16,1,0.3,1);
+        }
+        .skip-sheet-header {
+            padding: 16px 18px 14px; border-bottom: 1px solid var(--border-subtle);
+            display: flex; align-items: center; justify-content: space-between;
+        }
+        .skip-sheet-title { font-size: 0.9rem; font-weight: 700; color: var(--text-dark); }
+        .skip-sheet-body { padding: 16px 18px; }
+        .skip-sheet-item-text {
+            font-size: 0.82rem; color: var(--text-muted); margin-bottom: 12px;
+            padding: 8px 10px; background: var(--bg-light); border-radius: 7px;
+            line-height: 1.5;
+        }
+        .skip-sheet-footer {
+            display: flex; gap: 8px; padding: 8px 18px 4px;
+        }
     </style>
 </head>
 <body>
@@ -1531,6 +1778,12 @@
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
                 </span>
                 <span class="dropdown-item-label">공유</span>
+            </button>
+            <button class="dropdown-item" onclick="app.menuAction('repository')">
+                <span class="dropdown-item-icon" style="color:#8b5cf6;">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                </span>
+                <span class="dropdown-item-label">저장소 관리</span>
             </button>
             <button class="dropdown-item" onclick="app.menuAction('settings')">
                 <span class="dropdown-item-icon" style="color:var(--text-muted);">
@@ -1857,6 +2110,26 @@
         </div>
     </div>
 
+    <!-- 저장소 관리 모달 -->
+    <div class="modal" id="repositoryModal">
+        <div class="modal-content repo-modal-content">
+            <div class="modal-header">
+                <div class="modal-title" style="display:flex;align-items:center;gap:8px;">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                    저장소 관리
+                </div>
+                <button class="close-btn" onclick="app.closeModal('repositoryModal')">×</button>
+            </div>
+            <!-- 탭 바 -->
+            <div class="repo-tab-bar">
+                <button class="repo-tab active" id="repoTabLaw" onclick="app.switchRepoTab('law')">⚖️ 법령/매뉴얼</button>
+                <button class="repo-tab" id="repoTabForm" onclick="app.switchRepoTab('form')">📋 서식</button>
+            </div>
+            <!-- 탭 본문 -->
+            <div class="repo-tab-body" id="repoTabBody"></div>
+        </div>
+    </div>
+
     <!-- Toast 알림 -->
     <div class="toast" id="toast"></div>
 
@@ -2098,7 +2371,7 @@
         class IndexedDBManager {
             constructor() {
                 this.dbName = 'WorkflowDB';
-                this.version = 3;
+                this.version = 4;
                 this.db = null;
             }
 
@@ -2146,6 +2419,11 @@
                         if (!db.objectStoreNames.contains('lawLibrary')) {
                             const lawStore = db.createObjectStore('lawLibrary', { keyPath: 'id' });
                             lawStore.createIndex('filename', 'filename', { unique: false });
+                        }
+
+                        if (!db.objectStoreNames.contains('formLibrary')) {
+                            const formLibStore = db.createObjectStore('formLibrary', { keyPath: 'id' });
+                            formLibStore.createIndex('filename', 'filename', { unique: false });
                         }
                     };
                 });
@@ -2326,6 +2604,69 @@
                     const store = transaction.objectStore('lawLibrary');
                     const request = store.getAll();
                     request.onsuccess = () => resolve(request.result || []);
+                    request.onerror = () => reject(request.error);
+                });
+            }
+
+            async deleteLawDoc(id) {
+                if (!this.db) return;
+                return new Promise((resolve, reject) => {
+                    const transaction = this.db.transaction(['lawLibrary'], 'readwrite');
+                    const store = transaction.objectStore('lawLibrary');
+                    const request = store.delete(id);
+                    request.onsuccess = () => resolve();
+                    request.onerror = () => reject(request.error);
+                });
+            }
+
+            async saveFormDoc(doc) {
+                if (!this.db) return;
+                return new Promise((resolve, reject) => {
+                    const transaction = this.db.transaction(['formLibrary'], 'readwrite');
+                    const store = transaction.objectStore('formLibrary');
+                    const request = store.put(doc);
+                    request.onsuccess = () => resolve(request.result);
+                    request.onerror = () => reject(request.error);
+                });
+            }
+
+            async getAllFormDocs() {
+                if (!this.db) return [];
+                return new Promise((resolve, reject) => {
+                    const transaction = this.db.transaction(['formLibrary'], 'readonly');
+                    const store = transaction.objectStore('formLibrary');
+                    const request = store.getAll();
+                    request.onsuccess = () => resolve(request.result || []);
+                    request.onerror = () => reject(request.error);
+                });
+            }
+
+            async getFormDocsByIds(ids) {
+                if (!this.db || !ids || ids.length === 0) return [];
+                return new Promise((resolve) => {
+                    const transaction = this.db.transaction(['formLibrary'], 'readonly');
+                    const store = transaction.objectStore('formLibrary');
+                    const results = [];
+                    let pending = ids.length;
+                    if (pending === 0) { resolve([]); return; }
+                    ids.forEach(id => {
+                        const req = store.get(id);
+                        req.onsuccess = () => {
+                            if (req.result) results.push(req.result);
+                            if (--pending === 0) resolve(results);
+                        };
+                        req.onerror = () => { if (--pending === 0) resolve(results); };
+                    });
+                });
+            }
+
+            async deleteFormDoc(id) {
+                if (!this.db) return;
+                return new Promise((resolve, reject) => {
+                    const transaction = this.db.transaction(['formLibrary'], 'readwrite');
+                    const store = transaction.objectStore('formLibrary');
+                    const request = store.delete(id);
+                    request.onsuccess = () => resolve();
                     request.onerror = () => reject(request.error);
                 });
             }
@@ -3049,7 +3390,39 @@
                             return s;
                         }
                     });
-                    const json = JSON.stringify({ type:'project', exportedAt:new Date().toISOString(), exportedFrom:'mobile', projects:safeWfs }, null, 2);
+
+                    // 저장소 데이터 포함 (Blob → base64)
+                    let lawLibraryData = [], formLibraryData = [];
+                    try {
+                        const allLaw = await this.dbManager.getAllLawDocs();
+                        lawLibraryData = await Promise.all(allLaw.map(async d => {
+                            const entry = { id:d.id, filename:d.filename, size:d.size, uploadedAt:d.uploadedAt, content:d.content||'' };
+                            if (d.blob) {
+                                try {
+                                    const ab = await d.blob.arrayBuffer();
+                                    entry.blobBase64 = btoa(String.fromCharCode(...new Uint8Array(ab)));
+                                    entry.blobType = d.blob.type;
+                                } catch(_) {}
+                            }
+                            return entry;
+                        }));
+                    } catch(_) {}
+                    try {
+                        const allForm = await this.dbManager.getAllFormDocs();
+                        formLibraryData = await Promise.all(allForm.map(async d => {
+                            const entry = { id:d.id, filename:d.filename, size:d.size, uploadedAt:d.uploadedAt };
+                            if (d.blob) {
+                                try {
+                                    const ab = await d.blob.arrayBuffer();
+                                    entry.blobBase64 = btoa(String.fromCharCode(...new Uint8Array(ab)));
+                                    entry.blobType = d.blob.type;
+                                } catch(_) {}
+                            }
+                            return entry;
+                        }));
+                    } catch(_) {}
+
+                    const json = JSON.stringify({ type:'project', exportedAt:new Date().toISOString(), exportedFrom:'mobile', projects:safeWfs, lawLibraryData, formLibraryData }, null, 2);
                     const now = new Date();
                     const d = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}`;
                     const label = workflows.length === 1 ? workflows[0].title.substring(0,20).replace(/[\\/:*?"<>|]/g,'') : `업무${workflows.length}개`;
@@ -3640,11 +4013,27 @@
                             ? `<div class="cl-skip-info"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>${this.escapeHtml(item.skipReason)}</div>`
                             : '';
 
+                        // 업무팁 표시
+                        const tipText = item.tip?.content || item.tip || '';
+                        const tipBar = (!isSkipped && tipText)
+                            ? `<div class="cl-tip-bar"><span class="cl-tip-bar-ico">💡</span><span>${this.escapeHtml(String(tipText).substring(0,80))}${tipText.length>80?'…':''}</span></div>`
+                            : '';
+
+                        // 조치결과 표시
+                        const resultText = item.resultText || '';
+                        const resultBar = (isCompleted && resultText)
+                            ? `<div class="cl-result-bar"><span>✅</span><span>${this.escapeHtml(String(resultText).substring(0,80))}${resultText.length>80?'…':''}</span></div>`
+                            : '';
+
                         const checkWrap = isSkipped
-                            ? `<div class="cl-check-wrap cl-skip-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg></div>`
+                            ? `<div class="cl-check-wrap cl-skip-icon" onclick="event.stopPropagation();app.openItemDetail(${workflowId},${index})" title="항목 상세"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg></div>`
                             : `<div class="cl-check-wrap" onclick="event.stopPropagation();app.toggleChecklistItem(${workflowId},${index})">
                                 <input type="checkbox" class="cl-checkbox" ${isCompleted ? 'checked' : ''} tabindex="-1">
                                </div>`;
+
+                        const detailBtn = `<button class="cl-detail-btn" onclick="event.stopPropagation();app.openItemDetail(${workflowId},${index})" title="항목 상세">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
+                        </button>`;
 
                         const aiBtn = !isSkipped
                             ? `<button class="cl-ai-btn" onclick="event.stopPropagation();app.showAIGuide(${workflowId},${index})" title="AI 길잡이">
@@ -3657,10 +4046,11 @@
                                 <div class="cl-card-row">
                                     ${checkWrap}
                                     <span class="cl-num">${num}</span>
-                                    <span class="cl-text">${this.escapeHtml(item.text || '')}</span>
+                                    <span class="cl-text" onclick="event.stopPropagation();app.openItemDetail(${workflowId},${index})">${this.escapeHtml(item.text || '')}</span>
+                                    ${detailBtn}
                                     ${aiBtn}
                                 </div>
-                                ${skipInfo}
+                                ${tipBar}${resultBar}${skipInfo}
                             </div>`;
                     }).join('');
 
@@ -4666,6 +5056,23 @@
                     completedExperience += '\n';
                 }
 
+                // 연결된 법령/매뉴얼 (lawIds) 내용 로드
+                let linkedLawContext = '';
+                try {
+                    const lawIds = currentItem.lawIds || [];
+                    if (lawIds.length > 0) {
+                        const lawDocs = await this.dbManager.getLawDocsByIds(lawIds);
+                        if (lawDocs.length > 0) {
+                            linkedLawContext = '[연결된 법령/매뉴얼]\n';
+                            for (const ld of lawDocs) {
+                                const content = ld.content || '';
+                                const snippet = content.length > 1500 ? content.substring(0, 1500) + '…' : content;
+                                linkedLawContext += `【${ld.filename}】\n${snippet || '(텍스트 없음)'}\n\n`;
+                            }
+                        }
+                    }
+                } catch(_) {}
+
                 // 참조 문서 (PDF 문서)
                 let docContext = '';
                 try {
@@ -4740,7 +5147,7 @@ ${prompt}
 
 ${checklistContext}
 
-[참조 문서]
+${linkedLawContext ? linkedLawContext : ''}[참조 문서]
 ${docContext}${deadlineInfo}
 
 【중요 지시사항 — 반드시 준수】
@@ -4748,7 +5155,7 @@ ${docContext}${deadlineInfo}
 2. 이전 완료 항목의 경험·결과·팁을 참고해 더 나은 가이드를 제공하세요.
 3. 마감일이 가까우면 시간 관리 조언을 포함하세요.
 4. 【서식 정보 필수 활용】"📋 첨부서식" 정보가 있으면 반드시 "2️⃣" 섹션에서 파일명 그대로 언급하세요. 서식이 없을 때만 "별도 서식 없이" 안내하세요.
-5. 【문서 인용 규칙】[참조 문서]에 내용이 있으면 반드시 활용하고, 어느 문서·조문인지 명시하세요. "이 문서에는 관련 내용이 없습니다" 표시가 있을 때만 무시하세요.
+5. 【연결 법령 우선 인용】[연결된 법령/매뉴얼]이 있으면 해당 문서를 최우선으로 인용하고 조문번호를 명시하세요. [참조 문서]에 내용이 있으면 추가로 활용하세요.
 6. 문서에 명시되지 않은 내용은 절대 추론·추정하지 마세요. 확실하지 않으면 "자료에서 확인되지 않았습니다"라고 솔직하게 답하세요.
 7. 법령 조문 인용 시 조문번호(예: 제15조제2항)를 반드시 포함하고, 원문을 정확히 인용하세요.
 8. 답변은 핵심만 간결하게 — 각 섹션 2-3줄로 요약하고 반복은 생략하세요.
@@ -5324,6 +5731,7 @@ ${deadlineInfo ? `- 마감일 고려: ${deadlineInfo.includes('오늘 마감') ?
                     if (action === 'import') this.importProjectPackage();
                     else if (action === 'share') this.openShareSheet();
                     else if (action === 'settings') this.openModal('settingsModal');
+                    else if (action === 'repository') this.openRepository('law');
                 }, 80);
             }
             // ── 자동/수동 모델 선택 시스템 끝 ──────────────────────────────
@@ -5618,6 +6026,37 @@ ${deadlineInfo ? `- 마감일 고려: ${deadlineInfo.includes('오늘 마감') ?
                             } catch(e) {
                                 console.warn('법령매뉴얼 문서 처리 오류:', e);
                             }
+                        }
+                    }
+
+                    // ── 모바일 저장소 lawLibraryData / formLibraryData 복원 ──
+                    if (Array.isArray(packageData.lawLibraryData) && packageData.lawLibraryData.length > 0) {
+                        for (const d of packageData.lawLibraryData) {
+                            if (!d?.id) continue;
+                            try {
+                                const entry = { id:d.id, filename:d.filename||'법령', size:d.size, uploadedAt:d.uploadedAt, content:d.content||'' };
+                                if (d.blobBase64) {
+                                    entry.blob = this.base64ToBlob(d.blobBase64, d.blobType||'application/octet-stream');
+                                }
+                                await this.dbManager.saveLawDoc(entry);
+                            } catch(e) { console.warn('lawLibraryData 복원 실패:', e); }
+                        }
+                    }
+                    if (Array.isArray(packageData.formLibraryData) && packageData.formLibraryData.length > 0) {
+                        for (const d of packageData.formLibraryData) {
+                            if (!d?.id) continue;
+                            try {
+                                const entry = { id:d.id, filename:d.filename||'서식', size:d.size, uploadedAt:d.uploadedAt };
+                                if (d.blobBase64) {
+                                    entry.blob = this.base64ToBlob(d.blobBase64, d.blobType||'application/octet-stream');
+                                }
+                                await this.dbManager.saveFormDoc(entry);
+                            } catch(e) { console.warn('formLibraryData 복원 실패:', e); }
+                        }
+                        const fCount = packageData.formLibraryData.length;
+                        const lCount = (packageData.lawLibraryData||[]).length;
+                        if (lCount + fCount > 0) {
+                            this.showToast('info', '📚', `저장소 복원: 법령 ${lCount}개, 서식 ${fCount}개`);
                         }
                     }
 
@@ -6746,6 +7185,533 @@ ${pdfContent.length > 100000 ? pdfContent.substring(0, 100000) + '\n\n[중략: �
                     reader.onerror = reject;
                     reader.readAsDataURL(blob);
                 });
+            }
+
+            // ════════════════════════════════════════════════════════════
+            // 저장소 관리 (법령/매뉴얼 + 서식)
+            // ════════════════════════════════════════════════════════════
+            openRepository(tab) {
+                this._currentRepoTab = tab || 'law';
+                this.openModal('repositoryModal');
+                this.switchRepoTab(this._currentRepoTab);
+            }
+
+            switchRepoTab(tab) {
+                this._currentRepoTab = tab;
+                document.getElementById('repoTabLaw')?.classList.toggle('active', tab === 'law');
+                document.getElementById('repoTabForm')?.classList.toggle('active', tab === 'form');
+                this._renderRepoTab(tab);
+            }
+
+            async _renderRepoTab(tab) {
+                const body = document.getElementById('repoTabBody');
+                if (!body) return;
+                body.innerHTML = `<div class="repo-empty"><div class="repo-empty-icon">⏳</div>불러오는 중...</div>`;
+
+                try {
+                    if (tab === 'law') {
+                        const docs = await this.dbManager.getAllLawDocs();
+                        body.innerHTML = this._renderRepoList(docs, 'law');
+                    } else {
+                        const docs = await this.dbManager.getAllFormDocs();
+                        body.innerHTML = this._renderRepoList(docs, 'form');
+                    }
+                } catch(e) {
+                    body.innerHTML = `<div class="repo-empty"><div class="repo-empty-icon">❌</div>불러오기 실패</div>`;
+                }
+            }
+
+            _renderRepoList(docs, type) {
+                const label = type === 'law' ? '법령/매뉴얼' : '서식';
+                const icon = type === 'law' ? '⚖️' : '📋';
+                const hint = type === 'law'
+                    ? 'PDF, DOCX, TXT 파일 지원'
+                    : 'PDF, DOCX, HWP 등 서식 파일 지원';
+
+                let html = `
+                    <div class="repo-upload-zone">
+                        <button class="repo-upload-btn" onclick="app._uploadToRepo('${type}')">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                            ${icon} 파일 추가
+                        </button>
+                        <span class="repo-upload-hint">${hint}</span>
+                    </div>
+                    <div class="repo-search-wrap">
+                        <input class="repo-search-input" type="search" placeholder="${label} 검색..."
+                            oninput="app._filterRepoList(this.value,'${type}')" id="repoSearch_${type}">
+                    </div>`;
+
+                if (!docs || docs.length === 0) {
+                    html += `<div class="repo-empty"><div class="repo-empty-icon">${icon}</div>등록된 ${label}이 없습니다<br><small style="margin-top:6px;display:block;color:var(--text-muted)">[파일 추가]로 업로드하세요</small></div>`;
+                } else {
+                    html += `<div id="repoList_${type}">` + docs.map(d => this._repoItemHtml(d, type)).join('') + `</div>`;
+                }
+                return html;
+            }
+
+            _repoItemHtml(doc, type) {
+                const icon = type === 'law' ? '⚖️' : '📋';
+                const size = doc.size ? this._fmtBytes(doc.size) : '';
+                const date = doc.uploadedAt ? doc.uploadedAt.slice(0,10) : '';
+                const dl = type === 'form'
+                    ? `<button class="repo-action-btn download" onclick="app._downloadFormDoc('${doc.id}')" title="다운로드">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                       </button>` : '';
+                return `
+                    <div class="repo-item" data-name="${this.escapeHtml(doc.filename||'').toLowerCase()}">
+                        <div class="repo-item-icon ${type}"><span>${icon}</span></div>
+                        <div class="repo-item-info">
+                            <div class="repo-item-name" title="${this.escapeHtml(doc.filename||'')}">${this.escapeHtml(doc.filename||'이름없음')}</div>
+                            <div class="repo-item-meta">${size}${size&&date?' · ':''}${date}</div>
+                        </div>
+                        <div class="repo-item-actions">
+                            ${dl}
+                            <button class="repo-action-btn delete" onclick="app._deleteRepoDoc('${doc.id}','${type}')" title="삭제">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+                            </button>
+                        </div>
+                    </div>`;
+            }
+
+            _filterRepoList(q, type) {
+                const list = document.getElementById(`repoList_${type}`);
+                if (!list) return;
+                const lower = q.toLowerCase();
+                list.querySelectorAll('.repo-item').forEach(el => {
+                    const name = el.dataset.name || '';
+                    el.style.display = (!lower || name.includes(lower)) ? '' : 'none';
+                });
+            }
+
+            async _uploadToRepo(type) {
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.accept = type === 'law'
+                    ? '.pdf,.docx,.txt,.md,.hwpx'
+                    : '.pdf,.docx,.hwp,.hwpx,.xls,.xlsx,.ppt,.pptx,.txt';
+                input.multiple = true;
+                input.onchange = async (e) => {
+                    const files = Array.from(e.target.files || []);
+                    if (!files.length) return;
+                    let count = 0;
+                    for (const file of files) {
+                        try {
+                            const blob = new Blob([await file.arrayBuffer()], { type: file.type });
+                            const doc = {
+                                id: `${type}-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+                                filename: file.name,
+                                size: file.size,
+                                uploadedAt: new Date().toISOString(),
+                                blob
+                            };
+                            // 법령/매뉴얼은 텍스트 추출도 저장
+                            if (type === 'law') {
+                                const text = await this._extractTextFromBlob(blob, file.name);
+                                if (text) doc.content = text;
+                                await this.dbManager.saveLawDoc(doc);
+                            } else {
+                                await this.dbManager.saveFormDoc(doc);
+                            }
+                            count++;
+                        } catch(err) {
+                            console.warn('업로드 실패:', file.name, err);
+                        }
+                    }
+                    if (count > 0) {
+                        this.showToast('success', '✅', `${count}개 파일이 저장소에 추가되었습니다`);
+                        this._renderRepoTab(type);
+                    } else {
+                        this.showToast('error', '❌', '파일 업로드에 실패했습니다');
+                    }
+                };
+                input.click();
+            }
+
+            async _deleteRepoDoc(id, type) {
+                if (!confirm('삭제하면 연결된 항목에서도 제거됩니다. 삭제할까요?')) return;
+                try {
+                    if (type === 'law') {
+                        await this.dbManager.deleteLawDoc(id);
+                        // 모든 워크플로우에서 lawIds에서 제거
+                        for (const wf of this.allData.workflows) {
+                            let changed = false;
+                            if (wf.checklist) {
+                                wf.checklist.forEach(item => {
+                                    if (item.lawIds?.includes(id)) {
+                                        item.lawIds = item.lawIds.filter(x => x !== id);
+                                        changed = true;
+                                    }
+                                });
+                            }
+                            if (changed) await this.saveWorkflow(wf);
+                        }
+                    } else {
+                        await this.dbManager.deleteFormDoc(id);
+                        for (const wf of this.allData.workflows) {
+                            let changed = false;
+                            if (wf.checklist) {
+                                wf.checklist.forEach(item => {
+                                    if (item.formIds?.includes(id)) {
+                                        item.formIds = item.formIds.filter(x => x !== id);
+                                        changed = true;
+                                    }
+                                });
+                            }
+                            if (changed) await this.saveWorkflow(wf);
+                        }
+                    }
+                    this.showToast('success', '✅', '삭제되었습니다');
+                    this._renderRepoTab(type);
+                } catch(e) {
+                    this.showToast('error', '❌', '삭제 실패: ' + e.message);
+                }
+            }
+
+            async _downloadFormDoc(id) {
+                try {
+                    const doc = (await this.dbManager.getFormDocsByIds([id]))[0];
+                    if (!doc || !doc.blob) { this.showToast('error', '❌', '파일을 찾을 수 없습니다'); return; }
+                    const url = URL.createObjectURL(doc.blob);
+                    const a = document.createElement('a');
+                    a.href = url; a.download = doc.filename || 'form';
+                    a.click();
+                    setTimeout(() => URL.revokeObjectURL(url), 3000);
+                } catch(e) {
+                    this.showToast('error', '❌', '다운로드 실패: ' + e.message);
+                }
+            }
+
+            _fmtBytes(bytes) {
+                if (!bytes) return '';
+                if (bytes < 1024) return bytes + 'B';
+                if (bytes < 1024*1024) return (bytes/1024).toFixed(0) + 'KB';
+                return (bytes/(1024*1024)).toFixed(1) + 'MB';
+            }
+
+            // ════════════════════════════════════════════════════════════
+            // 항목 상세 시트 (팁, 결과, 건너뛰기, 링크 연결)
+            // ════════════════════════════════════════════════════════════
+            async openItemDetail(workflowId, itemIndex) {
+                const workflow = this.allData.workflows.find(w => w.id === workflowId);
+                if (!workflow || !workflow.checklist) return;
+                const item = workflow.checklist[itemIndex];
+                if (!item) return;
+
+                const isSkipped = item.skipped === true;
+                const isCompleted = this.normalizeCompleted(item);
+                const tipVal = item.tip?.content || item.tip || '';
+                const resultVal = item.resultText || '';
+                const lawIds = item.lawIds || [];
+                const formIds = item.formIds || [];
+
+                // 저장소에서 연결된 문서 이름 조회
+                const [linkedLaws, linkedForms] = await Promise.all([
+                    this.dbManager.getLawDocsByIds(lawIds),
+                    this.dbManager.getFormDocsByIds(formIds)
+                ]);
+
+                // 연결 법령 칩 HTML
+                const lawChips = linkedLaws.length
+                    ? linkedLaws.map(d => `<span class="ids-chip law"><span class="ids-chip-name" title="${this.escapeHtml(d.filename)}">${this.escapeHtml(d.filename)}</span><button class="ids-chip-del" onclick="app._unlinkDoc(${workflowId},${itemIndex},'law','${d.id}')">×</button></span>`).join('')
+                    : '<span style="font-size:0.78rem;color:var(--text-muted);">연결된 법령/매뉴얼 없음</span>';
+
+                // 연결 서식 칩 HTML
+                const formChips = linkedForms.length
+                    ? linkedForms.map(d => `<span class="ids-chip form"><span class="ids-chip-name" title="${this.escapeHtml(d.filename)}">${this.escapeHtml(d.filename)}</span><button class="ids-chip-del" onclick="app._unlinkDoc(${workflowId},${itemIndex},'form','${d.id}')">×</button></span>`).join('')
+                    : '<span style="font-size:0.78rem;color:var(--text-muted);">연결된 서식 없음</span>';
+
+                // 건너뛰기 버튼
+                const skipBtn = isSkipped
+                    ? `<button class="ids-skip-btn active" onclick="app._unskipItem(${workflowId},${itemIndex})">
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 8 12 12 14 14"/></svg>
+                          건너뛰기 취소
+                       </button>`
+                    : `<button class="ids-skip-btn" onclick="app._promptSkip(${workflowId},${itemIndex})">
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
+                          건너뛰기
+                       </button>`;
+
+                const ov = document.createElement('div');
+                ov.className = 'action-sheet-overlay';
+                ov.style.zIndex = '3000';
+                ov.innerHTML = `
+                    <div class="item-detail-sheet" id="itemDetailSheet">
+                        <div class="ids-handle"></div>
+                        <div class="ids-header">
+                            <span class="ids-title">${this.escapeHtml(item.text || '')}</span>
+                            <button class="ids-close" onclick="this.closest('.action-sheet-overlay').remove()">×</button>
+                        </div>
+
+                        <!-- 항목 텍스트 편집 -->
+                        <div class="ids-section">
+                            <div class="ids-section-label">항목 수정</div>
+                            <textarea class="ids-textarea" id="idsItemText" rows="2">${this.escapeHtml(item.text||'')}</textarea>
+                            <div class="ids-save-row">
+                                <button class="ids-save-btn" onclick="app._saveItemText(${workflowId},${itemIndex})">저장</button>
+                            </div>
+                        </div>
+
+                        <!-- 업무팁 -->
+                        <div class="ids-section">
+                            <div class="ids-section-label">업무팁 💡</div>
+                            <textarea class="ids-textarea" id="idsItemTip" rows="2" placeholder="이 항목의 업무 팁을 입력하세요...">${this.escapeHtml(tipVal)}</textarea>
+                            <div class="ids-save-row">
+                                <button class="ids-save-btn" onclick="app._saveItemTip(${workflowId},${itemIndex})">저장</button>
+                            </div>
+                        </div>
+
+                        <!-- 조치결과 -->
+                        <div class="ids-section">
+                            <div class="ids-section-label">조치결과 기록</div>
+                            <textarea class="ids-textarea" id="idsItemResult" rows="2" placeholder="처리 결과를 기록하세요...">${this.escapeHtml(resultVal)}</textarea>
+                            <div class="ids-save-row">
+                                <button class="ids-save-btn" onclick="app._saveItemResult(${workflowId},${itemIndex})">저장</button>
+                            </div>
+                        </div>
+
+                        <!-- 연결 법령/매뉴얼 -->
+                        <div class="ids-section">
+                            <div class="ids-section-label">
+                                연결된 법령/매뉴얼
+                                <button class="ids-add-btn" onclick="app._openLinkPicker(${workflowId},${itemIndex},'law')">
+                                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                                    추가
+                                </button>
+                            </div>
+                            <div class="ids-chips" id="lawChips_${workflowId}_${itemIndex}">${lawChips}</div>
+                        </div>
+
+                        <!-- 연결 서식 -->
+                        <div class="ids-section">
+                            <div class="ids-section-label">
+                                연결된 서식
+                                <button class="ids-add-btn" onclick="app._openLinkPicker(${workflowId},${itemIndex},'form')">
+                                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                                    추가
+                                </button>
+                            </div>
+                            <div class="ids-chips" id="formChips_${workflowId}_${itemIndex}">${formChips}</div>
+                        </div>
+
+                        <!-- 하단 버튼 -->
+                        <div class="ids-action-row">
+                            ${skipBtn}
+                            <button class="ids-ai-btn" onclick="this.closest('.action-sheet-overlay').remove();app.showAIGuide(${workflowId},${itemIndex})">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="9" y1="18" x2="15" y2="18"/><line x1="10" y1="22" x2="14" y2="22"/><path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5A4.61 4.61 0 0 1 8.91 14"/></svg>
+                                AI 길잡이
+                            </button>
+                        </div>
+                    </div>`;
+
+                ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+                document.body.appendChild(ov);
+                // 현재 워크플로우 ID 기억 (저장 시 참조)
+                this._detailOverlay = ov;
+            }
+
+            async _saveItemText(workflowId, itemIndex) {
+                const wf = this.allData.workflows.find(w => w.id === workflowId);
+                if (!wf?.checklist?.[itemIndex]) return;
+                const val = document.getElementById('idsItemText')?.value?.trim();
+                if (!val) { this.showToast('error', '⚠️', '항목 내용을 입력하세요'); return; }
+                wf.checklist[itemIndex].text = val;
+                await this.saveWorkflow(wf);
+                // 헤더 타이틀 업데이트
+                const sheet = document.getElementById('itemDetailSheet');
+                if (sheet) sheet.querySelector('.ids-title').textContent = val;
+                const card = document.getElementById(`cl-card-${itemIndex}`);
+                if (card) card.querySelector('.cl-text').textContent = val;
+                this.showToast('success', '✅', '항목이 수정되었습니다');
+            }
+
+            async _saveItemTip(workflowId, itemIndex) {
+                const wf = this.allData.workflows.find(w => w.id === workflowId);
+                if (!wf?.checklist?.[itemIndex]) return;
+                const val = document.getElementById('idsItemTip')?.value || '';
+                wf.checklist[itemIndex].tip = { content: val };
+                await this.saveWorkflow(wf);
+                this.showChecklist(workflowId); // 팁 바 반영
+                this.showToast('success', '✅', '업무팁이 저장되었습니다');
+            }
+
+            async _saveItemResult(workflowId, itemIndex) {
+                const wf = this.allData.workflows.find(w => w.id === workflowId);
+                if (!wf?.checklist?.[itemIndex]) return;
+                const val = document.getElementById('idsItemResult')?.value || '';
+                wf.checklist[itemIndex].resultText = val;
+                if (val) wf.checklist[itemIndex].resultAt = new Date().toISOString();
+                await this.saveWorkflow(wf);
+                this.showToast('success', '✅', '조치결과가 기록되었습니다');
+            }
+
+            _promptSkip(workflowId, itemIndex) {
+                const wf = this.allData.workflows.find(w => w.id === workflowId);
+                if (!wf?.checklist?.[itemIndex]) return;
+                const item = wf.checklist[itemIndex];
+
+                // 기존 상세 오버레이 닫기
+                this._detailOverlay?.remove();
+
+                const ov = document.createElement('div');
+                ov.className = 'action-sheet-overlay';
+                ov.style.zIndex = '3100';
+                ov.innerHTML = `
+                    <div class="skip-sheet">
+                        <div class="skip-sheet-header">
+                            <span class="skip-sheet-title">건너뛰기 사유 입력</span>
+                            <button onclick="this.closest('.action-sheet-overlay').remove()" style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:var(--text-muted);">×</button>
+                        </div>
+                        <div class="skip-sheet-body">
+                            <div class="skip-sheet-item-text">${this.escapeHtml(item.text || '')}</div>
+                            <textarea class="ids-textarea" id="skipReasonInput" rows="3"
+                                placeholder="건너뛰는 이유를 간단히 입력하세요 (선택)..."></textarea>
+                        </div>
+                        <div class="skip-sheet-footer">
+                            <button class="btn btn-secondary" style="flex:1;" onclick="this.closest('.action-sheet-overlay').remove()">취소</button>
+                            <button class="btn btn-primary" style="flex:1;" onclick="app._applySkip(${workflowId},${itemIndex})">건너뛰기</button>
+                        </div>
+                    </div>`;
+                ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+                document.body.appendChild(ov);
+            }
+
+            async _applySkip(workflowId, itemIndex) {
+                const wf = this.allData.workflows.find(w => w.id === workflowId);
+                if (!wf?.checklist?.[itemIndex]) return;
+                const reason = document.getElementById('skipReasonInput')?.value?.trim() || '';
+                wf.checklist[itemIndex].skipped = true;
+                wf.checklist[itemIndex].skipReason = reason;
+                wf.checklist[itemIndex].completed = false;
+                wf.checklist[itemIndex].completedAt = null;
+                await this.saveWorkflow(wf);
+                // 오버레이 닫기
+                document.querySelectorAll('.action-sheet-overlay').forEach(el => el.remove());
+                this.showChecklist(workflowId);
+                this._updateClHeader(wf);
+                this.displayWorkflows();
+                if (navigator.vibrate) navigator.vibrate(40);
+                this.showToast('info', 'ℹ️', '항목을 건너뛰었습니다');
+            }
+
+            async _unskipItem(workflowId, itemIndex) {
+                const wf = this.allData.workflows.find(w => w.id === workflowId);
+                if (!wf?.checklist?.[itemIndex]) return;
+                wf.checklist[itemIndex].skipped = false;
+                wf.checklist[itemIndex].skipReason = '';
+                await this.saveWorkflow(wf);
+                document.querySelectorAll('.action-sheet-overlay').forEach(el => el.remove());
+                this.showChecklist(workflowId);
+                this._updateClHeader(wf);
+                this.displayWorkflows();
+                this.showToast('success', '✅', '건너뛰기가 취소되었습니다');
+            }
+
+            async _openLinkPicker(workflowId, itemIndex, type) {
+                let docs = [];
+                try {
+                    docs = type === 'law'
+                        ? await this.dbManager.getAllLawDocs()
+                        : await this.dbManager.getAllFormDocs();
+                } catch(e) {}
+
+                const wf = this.allData.workflows.find(w => w.id === workflowId);
+                const item = wf?.checklist?.[itemIndex];
+                if (!item) return;
+                const linkedIds = type === 'law' ? (item.lawIds || []) : (item.formIds || []);
+                const icon = type === 'law' ? '⚖️' : '📋';
+                const label = type === 'law' ? '법령/매뉴얼' : '서식';
+
+                const ov = document.createElement('div');
+                ov.className = 'action-sheet-overlay';
+                ov.style.zIndex = '3200';
+
+                let listHtml = '';
+                if (!docs.length) {
+                    listHtml = `<div class="repo-empty" style="padding:30px 20px;">
+                        <div class="repo-empty-icon">${icon}</div>
+                        저장소에 ${label}이 없습니다<br>
+                        <button class="btn btn-secondary" style="margin-top:12px;" onclick="this.closest('.action-sheet-overlay').remove();app.openRepository('${type}')">저장소로 이동</button>
+                    </div>`;
+                } else {
+                    listHtml = docs.map(d => {
+                        const checked = linkedIds.includes(d.id);
+                        return `<div class="link-picker-item" onclick="app._toggleLink(${workflowId},${itemIndex},'${type}','${d.id}',this)">
+                            <div class="link-picker-check ${checked?'checked':''}" id="lpc_${d.id}">
+                                ${checked?'<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>':''}
+                            </div>
+                            <div class="link-picker-name">${this.escapeHtml(d.filename||'')}</div>
+                            <div class="link-picker-meta">${d.size?this._fmtBytes(d.size):''}</div>
+                        </div>`;
+                    }).join('');
+                }
+
+                ov.innerHTML = `
+                    <div class="action-sheet" style="max-height:70vh;overflow-y:auto;">
+                        <div class="action-sheet-title">${icon} ${label} 연결</div>
+                        ${listHtml}
+                        <div style="padding:10px 16px 4px;">
+                            <button class="btn btn-primary" style="width:100%;justify-content:center;" onclick="this.closest('.action-sheet-overlay').remove()">완료</button>
+                        </div>
+                    </div>`;
+                ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+                document.body.appendChild(ov);
+            }
+
+            async _toggleLink(workflowId, itemIndex, type, docId, el) {
+                const wf = this.allData.workflows.find(w => w.id === workflowId);
+                const item = wf?.checklist?.[itemIndex];
+                if (!item) return;
+
+                const key = type === 'law' ? 'lawIds' : 'formIds';
+                if (!item[key]) item[key] = [];
+
+                const box = el.querySelector('.link-picker-check');
+                if (item[key].includes(docId)) {
+                    item[key] = item[key].filter(x => x !== docId);
+                    if (box) { box.classList.remove('checked'); box.innerHTML = ''; }
+                } else {
+                    item[key].push(docId);
+                    if (box) { box.classList.add('checked'); box.innerHTML = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>'; }
+                }
+                await this.saveWorkflow(wf);
+                // 칩 영역 새로고침
+                await this._refreshLinkChips(workflowId, itemIndex);
+            }
+
+            async _unlinkDoc(workflowId, itemIndex, type, docId) {
+                const wf = this.allData.workflows.find(w => w.id === workflowId);
+                const item = wf?.checklist?.[itemIndex];
+                if (!item) return;
+                const key = type === 'law' ? 'lawIds' : 'formIds';
+                item[key] = (item[key] || []).filter(x => x !== docId);
+                await this.saveWorkflow(wf);
+                await this._refreshLinkChips(workflowId, itemIndex);
+            }
+
+            async _refreshLinkChips(workflowId, itemIndex) {
+                const wf = this.allData.workflows.find(w => w.id === workflowId);
+                const item = wf?.checklist?.[itemIndex];
+                if (!item) return;
+
+                const lawIds = item.lawIds || [];
+                const formIds = item.formIds || [];
+                const [linkedLaws, linkedForms] = await Promise.all([
+                    this.dbManager.getLawDocsByIds(lawIds),
+                    this.dbManager.getFormDocsByIds(formIds)
+                ]);
+
+                const lawEl = document.getElementById(`lawChips_${workflowId}_${itemIndex}`);
+                const formEl = document.getElementById(`formChips_${workflowId}_${itemIndex}`);
+                if (lawEl) {
+                    lawEl.innerHTML = linkedLaws.length
+                        ? linkedLaws.map(d => `<span class="ids-chip law"><span class="ids-chip-name">${this.escapeHtml(d.filename)}</span><button class="ids-chip-del" onclick="app._unlinkDoc(${workflowId},${itemIndex},'law','${d.id}')">×</button></span>`).join('')
+                        : '<span style="font-size:0.78rem;color:var(--text-muted);">연결된 법령/매뉴얼 없음</span>';
+                }
+                if (formEl) {
+                    formEl.innerHTML = linkedForms.length
+                        ? linkedForms.map(d => `<span class="ids-chip form"><span class="ids-chip-name">${this.escapeHtml(d.filename)}</span><button class="ids-chip-del" onclick="app._unlinkDoc(${workflowId},${itemIndex},'form','${d.id}')">×</button></span>`).join('')
+                        : '<span style="font-size:0.78rem;color:var(--text-muted);">연결된 서식 없음</span>';
+                }
             }
 
             // Blob에서 텍스트 추출 (PDF/DOCX/TXT 지원)
