@@ -1673,18 +1673,47 @@
         .ids-ai-btn:active { opacity: 0.88; }
 
         /* 체크리스트 카드 팁 표시 */
-        .cl-tip-bar {
-            display: flex; align-items: flex-start; gap: 5px;
-            padding: 0 12px 9px 54px;
-            font-size: 0.72rem; color: #d97706; line-height: 1.5;
+        /* 카드 인라인 배지 (팁·결과) */
+        .cl-badge {
+            display: inline-flex; align-items: center; justify-content: center;
+            font-size: 0.75rem; border-radius: 5px; flex-shrink: 0;
+            width: 22px; height: 22px;
         }
-        .cl-tip-bar-ico { flex-shrink: 0; margin-top: 1px; }
-        /* 결과 기록 표시 */
-        .cl-result-bar {
-            display: flex; align-items: flex-start; gap: 5px;
-            padding: 0 12px 9px 54px;
-            font-size: 0.72rem; color: #059669; line-height: 1.5;
+        .cl-badge.tip  { background: rgba(245,158,11,0.12); }
+        .cl-badge.result { background: rgba(5,150,105,0.12); }
+
+        /* 체크리스트 법령 연결 바 */
+        .cl-law-bar {
+            display: flex; align-items: center; gap: 6px;
+            padding: 6px 14px; overflow-x: auto; flex-shrink: 0;
+            border-bottom: 1px solid var(--border-subtle);
+            background: rgba(139,92,246,0.025);
+            -webkit-overflow-scrolling: touch; scrollbar-width: none;
         }
+        .cl-law-bar::-webkit-scrollbar { display: none; }
+        .cl-law-chip {
+            display: flex; align-items: center; gap: 4px;
+            background: rgba(139,92,246,0.1); color: #7c3aed;
+            border-radius: 6px; padding: 3px 7px;
+            font-size: 0.71rem; font-weight: 600;
+            white-space: nowrap; flex-shrink: 0; max-width: 140px;
+        }
+        .cl-law-chip-name {
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        }
+        .cl-law-chip-del {
+            background: none; border: none; cursor: pointer;
+            color: #7c3aed; padding: 0; font-size: 0.9rem; line-height: 1;
+            flex-shrink: 0; touch-action: manipulation;
+        }
+        .cl-law-add-btn {
+            display: flex; align-items: center; gap: 3px; flex-shrink: 0;
+            background: none; border: 1px dashed rgba(139,92,246,0.35);
+            color: #7c3aed; border-radius: 6px; padding: 3px 8px;
+            font-size: 0.71rem; font-weight: 600; white-space: nowrap;
+            cursor: pointer; font-family: inherit; touch-action: manipulation;
+        }
+        .cl-law-add-btn:active { background: rgba(139,92,246,0.08); }
         /* 상세 버튼 */
         .cl-detail-btn {
             flex-shrink: 0; width: 30px; height: 30px; border-radius: 7px;
@@ -2030,6 +2059,8 @@
         <div class="cl-progress-wrap">
             <div class="cl-progress-fill" id="clProgressFill" style="width:0%"></div>
         </div>
+        <!-- 연결 법령/매뉴얼 바 -->
+        <div class="cl-law-bar" id="clLawBar"></div>
         <!-- 항목 목록 -->
         <div class="cl-body" id="checklistModalBody"></div>
     </div>
@@ -4032,16 +4063,14 @@
                             ? `<div class="cl-skip-info"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>${this.escapeHtml(item.skipReason)}</div>`
                             : '';
 
-                        // 업무팁 표시
+                        // 팁·결과 인라인 배지
                         const tipText = item.tip?.content || item.tip || '';
-                        const tipBar = (!isSkipped && tipText)
-                            ? `<div class="cl-tip-bar"><span class="cl-tip-bar-ico">💡</span><span>${this.escapeHtml(String(tipText).substring(0,80))}${tipText.length>80?'…':''}</span></div>`
+                        const tipBadge = (!isSkipped && tipText)
+                            ? `<span class="cl-badge tip" title="${this.escapeHtml(String(tipText).substring(0,100))}">💡</span>`
                             : '';
-
-                        // 조치결과 표시
                         const resultText = item.resultText || '';
-                        const resultBar = (isCompleted && resultText)
-                            ? `<div class="cl-result-bar"><span>✅</span><span>${this.escapeHtml(String(resultText).substring(0,80))}${resultText.length>80?'…':''}</span></div>`
+                        const resultBadge = resultText
+                            ? `<span class="cl-badge result" title="${this.escapeHtml(String(resultText).substring(0,100))}">📝</span>`
                             : '';
 
                         const checkWrap = isSkipped
@@ -4066,10 +4095,11 @@
                                     ${checkWrap}
                                     <span class="cl-num">${num}</span>
                                     <span class="cl-text" onclick="event.stopPropagation();app.openItemDetail(${workflowId},${index})">${this.escapeHtml(item.text || '')}</span>
+                                    ${tipBadge}${resultBadge}
                                     ${detailBtn}
                                     ${aiBtn}
                                 </div>
-                                ${tipBar}${resultBar}${skipInfo}
+                                ${skipInfo}
                             </div>`;
                     }).join('');
 
@@ -4084,7 +4114,8 @@
                 }
 
                 this.openChecklist();
-                this._initSwipeToComplete(workflowId); // ⑧ 스와이프 완료
+                this._initSwipeToComplete(workflowId);
+                this._renderClLawBar(workflowId);
             }
 
             enableAiPartnerWorkflowContext() {
@@ -5075,10 +5106,10 @@
                     completedExperience += '\n';
                 }
 
-                // 연결된 법령/매뉴얼 (lawIds) 내용 로드
+                // 연결된 법령/매뉴얼 (workflow 단위 lawIds) 내용 로드
                 let linkedLawContext = '';
                 try {
-                    const lawIds = currentItem.lawIds || [];
+                    const lawIds = (latestWorkflow || workflow).lawIds || [];
                     if (lawIds.length > 0) {
                         const lawDocs = await this.dbManager.getLawDocsByIds(lawIds);
                         if (lawDocs.length > 0) {
@@ -7369,18 +7400,12 @@ ${pdfContent.length > 100000 ? pdfContent.substring(0, 100000) + '\n\n[중략: �
                 try {
                     if (type === 'law') {
                         await this.dbManager.deleteLawDoc(id);
-                        // 모든 워크플로우에서 lawIds에서 제거
+                        // 모든 워크플로우에서 workflow.lawIds에서 제거
                         for (const wf of this.allData.workflows) {
-                            let changed = false;
-                            if (wf.checklist) {
-                                wf.checklist.forEach(item => {
-                                    if (item.lawIds?.includes(id)) {
-                                        item.lawIds = item.lawIds.filter(x => x !== id);
-                                        changed = true;
-                                    }
-                                });
+                            if (wf.lawIds?.includes(id)) {
+                                wf.lawIds = wf.lawIds.filter(x => x !== id);
+                                await this.saveWorkflow(wf);
                             }
-                            if (changed) await this.saveWorkflow(wf);
                         }
                     } else {
                         await this.dbManager.deleteFormDoc(id);
@@ -7438,19 +7463,10 @@ ${pdfContent.length > 100000 ? pdfContent.substring(0, 100000) + '\n\n[중략: �
                 const isCompleted = this.normalizeCompleted(item);
                 const tipVal = item.tip?.content || item.tip || '';
                 const resultVal = item.resultText || '';
-                const lawIds = item.lawIds || [];
                 const formIds = item.formIds || [];
 
-                // 저장소에서 연결된 문서 이름 조회
-                const [linkedLaws, linkedForms] = await Promise.all([
-                    this.dbManager.getLawDocsByIds(lawIds),
-                    this.dbManager.getFormDocsByIds(formIds)
-                ]);
-
-                // 연결 법령 칩 HTML
-                const lawChips = linkedLaws.length
-                    ? linkedLaws.map(d => `<span class="ids-chip law"><span class="ids-chip-name" title="${this.escapeHtml(d.filename)}">${this.escapeHtml(d.filename)}</span><button class="ids-chip-del" onclick="app._unlinkDoc(${workflowId},${itemIndex},'law','${d.id}')">×</button></span>`).join('')
-                    : '<span style="font-size:0.78rem;color:var(--text-muted);">연결된 법령/매뉴얼 없음</span>';
+                // 연결 서식 조회
+                const linkedForms = await this.dbManager.getFormDocsByIds(formIds);
 
                 // 연결 서식 칩 HTML
                 const formChips = linkedForms.length
@@ -7504,18 +7520,6 @@ ${pdfContent.length > 100000 ? pdfContent.substring(0, 100000) + '\n\n[중략: �
                             <div class="ids-save-row">
                                 <button class="ids-save-btn" onclick="app._saveItemResult(${workflowId},${itemIndex})">저장</button>
                             </div>
-                        </div>
-
-                        <!-- 연결 법령/매뉴얼 -->
-                        <div class="ids-section">
-                            <div class="ids-section-label">
-                                연결된 법령/매뉴얼
-                                <button class="ids-add-btn" onclick="app._openLinkPicker(${workflowId},${itemIndex},'law')">
-                                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                                    추가
-                                </button>
-                            </div>
-                            <div class="ids-chips" id="lawChips_${workflowId}_${itemIndex}">${lawChips}</div>
                         </div>
 
                         <!-- 연결 서식 -->
@@ -7729,26 +7733,107 @@ ${pdfContent.length > 100000 ? pdfContent.substring(0, 100000) + '\n\n[중략: �
                 const wf = this.allData.workflows.find(w => w.id === workflowId);
                 const item = wf?.checklist?.[itemIndex];
                 if (!item) return;
-
-                const lawIds = item.lawIds || [];
                 const formIds = item.formIds || [];
-                const [linkedLaws, linkedForms] = await Promise.all([
-                    this.dbManager.getLawDocsByIds(lawIds),
-                    this.dbManager.getFormDocsByIds(formIds)
-                ]);
-
-                const lawEl = document.getElementById(`lawChips_${workflowId}_${itemIndex}`);
+                const linkedForms = await this.dbManager.getFormDocsByIds(formIds);
                 const formEl = document.getElementById(`formChips_${workflowId}_${itemIndex}`);
-                if (lawEl) {
-                    lawEl.innerHTML = linkedLaws.length
-                        ? linkedLaws.map(d => `<span class="ids-chip law"><span class="ids-chip-name">${this.escapeHtml(d.filename)}</span><button class="ids-chip-del" onclick="app._unlinkDoc(${workflowId},${itemIndex},'law','${d.id}')">×</button></span>`).join('')
-                        : '<span style="font-size:0.78rem;color:var(--text-muted);">연결된 법령/매뉴얼 없음</span>';
-                }
                 if (formEl) {
                     formEl.innerHTML = linkedForms.length
                         ? linkedForms.map(d => `<span class="ids-chip form"><span class="ids-chip-name">${this.escapeHtml(d.filename)}</span><button class="ids-chip-del" onclick="app._unlinkDoc(${workflowId},${itemIndex},'form','${d.id}')">×</button></span>`).join('')
                         : '<span style="font-size:0.78rem;color:var(--text-muted);">연결된 서식 없음</span>';
                 }
+            }
+
+            // ════════════════════════════════════════════════════════════
+            // 업무 단위 법령/매뉴얼 연결 (clLawBar)
+            // ════════════════════════════════════════════════════════════
+            async _renderClLawBar(workflowId) {
+                const bar = document.getElementById('clLawBar');
+                if (!bar) return;
+                const wf = this.allData.workflows.find(w => w.id === workflowId);
+                if (!wf) return;
+                const lawIds = wf.lawIds || [];
+                let chips = '';
+                if (lawIds.length > 0) {
+                    const docs = await this.dbManager.getLawDocsByIds(lawIds);
+                    chips = docs.map(d =>
+                        `<span class="cl-law-chip">
+                            <span class="cl-law-chip-name" title="${this.escapeHtml(d.filename)}">⚖️ ${this.escapeHtml(d.filename)}</span>
+                            <button class="cl-law-chip-del" onclick="app._removeWorkflowLaw(${workflowId},'${d.id}')">×</button>
+                         </span>`
+                    ).join('');
+                }
+                bar.innerHTML = chips +
+                    `<button class="cl-law-add-btn" onclick="app._openWorkflowLawPicker(${workflowId})">
+                        <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                        법령 연결
+                     </button>`;
+            }
+
+            async _openWorkflowLawPicker(workflowId) {
+                const wf = this.allData.workflows.find(w => w.id === workflowId);
+                if (!wf) return;
+                const linkedIds = wf.lawIds || [];
+                let docs = [];
+                try { docs = await this.dbManager.getAllLawDocs(); } catch(_) {}
+
+                const ov = document.createElement('div');
+                ov.className = 'action-sheet-overlay';
+                ov.style.zIndex = '3200';
+
+                let listHtml = '';
+                if (!docs.length) {
+                    listHtml = `<div class="repo-empty" style="padding:30px 20px;">
+                        <div class="repo-empty-icon">⚖️</div>
+                        저장소에 법령/매뉴얼이 없습니다<br>
+                        <button class="btn btn-secondary" style="margin-top:12px;" onclick="this.closest('.action-sheet-overlay').remove();app.openRepository('law')">저장소로 이동</button>
+                    </div>`;
+                } else {
+                    listHtml = docs.map(d => {
+                        const checked = linkedIds.includes(d.id);
+                        return `<div class="link-picker-item" onclick="app._toggleWorkflowLaw(${workflowId},'${d.id}',this)">
+                            <div class="link-picker-check ${checked ? 'checked' : ''}" id="wlpc_${d.id}">
+                                ${checked ? '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>' : ''}
+                            </div>
+                            <div class="link-picker-name">${this.escapeHtml(d.filename)}</div>
+                            <div class="link-picker-meta">${d.size ? this._fmtBytes(d.size) : ''}</div>
+                        </div>`;
+                    }).join('');
+                }
+
+                ov.innerHTML = `
+                    <div class="action-sheet" style="max-height:70vh;overflow-y:auto;">
+                        <div class="action-sheet-title">⚖️ 법령/매뉴얼 연결</div>
+                        ${listHtml}
+                        <div style="padding:10px 16px 4px;">
+                            <button class="btn btn-primary" style="width:100%;justify-content:center;"
+                                onclick="this.closest('.action-sheet-overlay').remove();app._renderClLawBar(${workflowId})">완료</button>
+                        </div>
+                    </div>`;
+                ov.addEventListener('click', e => { if (e.target === ov) { ov.remove(); this._renderClLawBar(workflowId); } });
+                document.body.appendChild(ov);
+            }
+
+            async _toggleWorkflowLaw(workflowId, lawId, el) {
+                const wf = this.allData.workflows.find(w => w.id === workflowId);
+                if (!wf) return;
+                if (!wf.lawIds) wf.lawIds = [];
+                const box = el.querySelector('.link-picker-check');
+                if (wf.lawIds.includes(lawId)) {
+                    wf.lawIds = wf.lawIds.filter(x => x !== lawId);
+                    if (box) { box.classList.remove('checked'); box.innerHTML = ''; }
+                } else {
+                    wf.lawIds.push(lawId);
+                    if (box) { box.classList.add('checked'); box.innerHTML = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>'; }
+                }
+                await this.saveWorkflow(wf);
+            }
+
+            async _removeWorkflowLaw(workflowId, lawId) {
+                const wf = this.allData.workflows.find(w => w.id === workflowId);
+                if (!wf) return;
+                wf.lawIds = (wf.lawIds || []).filter(x => x !== lawId);
+                await this.saveWorkflow(wf);
+                this._renderClLawBar(workflowId);
             }
 
             // Blob에서 텍스트 추출 (PDF/DOCX/TXT 지원)
