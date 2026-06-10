@@ -1471,7 +1471,25 @@
         .empty-step-sub { font-size: 0.74rem; color: var(--text-muted); margin-top: 2px; }
 
         /* ===== 저장소 모달 ===== */
-        .repo-modal-content { max-width: 520px; padding: 0; overflow: hidden; }
+        /* repositoryModal: full-screen bottom sheet */
+        #repositoryModal { align-items: flex-end; padding: 0; z-index: 3500; }
+        #repositoryModal .modal-content {
+            max-width: 100%; width: 100%;
+            border-radius: 20px 20px 0 0;
+            max-height: 92vh; height: 92vh;
+            margin: 0; padding: 0; overflow: hidden;
+            display: flex; flex-direction: column;
+            transform: translateY(100%);
+            opacity: 1;
+            transition: transform 0.32s cubic-bezier(0.16,1,0.3,1);
+            padding-bottom: env(safe-area-inset-bottom, 0px);
+        }
+        #repositoryModal.show .modal-content { transform: translateY(0); }
+        .repo-sheet-handle {
+            width: 38px; height: 4px; border-radius: 999px;
+            background: var(--border-light); margin: 12px auto 4px;
+            flex-shrink: 0; cursor: grab;
+        }
         .repo-tab-bar {
             display: flex; border-bottom: 1px solid var(--border-light);
             background: var(--bg-light); flex-shrink: 0;
@@ -1483,7 +1501,7 @@
             transition: color 0.15s, border-color 0.15s; letter-spacing: -0.01em;
         }
         .repo-tab.active { color: var(--accent); border-bottom-color: var(--accent); background: white; }
-        .repo-tab-body { padding: 0; overflow-y: auto; max-height: calc(82vh - 100px); }
+        .repo-tab-body { padding: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; flex: 1; min-height: 0; }
         .repo-upload-zone {
             display: flex; align-items: center; gap: 10px;
             padding: 12px 16px; border-bottom: 1px solid var(--border-subtle);
@@ -2112,7 +2130,8 @@
 
     <!-- 저장소 관리 모달 -->
     <div class="modal" id="repositoryModal">
-        <div class="modal-content repo-modal-content">
+        <div class="modal-content">
+            <div class="repo-sheet-handle" id="repoSheetHandle"></div>
             <div class="modal-header">
                 <div class="modal-title" style="display:flex;align-items:center;gap:8px;">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
@@ -7191,9 +7210,27 @@ ${pdfContent.length > 100000 ? pdfContent.substring(0, 100000) + '\n\n[중략: �
             // 저장소 관리 (법령/매뉴얼 + 서식)
             // ════════════════════════════════════════════════════════════
             openRepository(tab) {
+                // 기존 오버레이(링크피커, 항목상세, 건너뛰기 등)를 모두 닫고 열기
+                document.querySelectorAll('.action-sheet-overlay').forEach(el => el.remove());
                 this._currentRepoTab = tab || 'law';
                 this.openModal('repositoryModal');
                 this.switchRepoTab(this._currentRepoTab);
+                this._initRepoSheetSwipe();
+            }
+
+            _initRepoSheetSwipe() {
+                const modal = document.getElementById('repositoryModal');
+                const handle = document.getElementById('repoSheetHandle');
+                if (!handle || handle._swipeReady) return;
+                handle._swipeReady = true;
+                let startY = 0;
+                // 핸들 스와이프로 닫기
+                handle.addEventListener('touchstart', e => { startY = e.touches[0].clientY; }, { passive: true });
+                handle.addEventListener('touchend', e => {
+                    if (e.changedTouches[0].clientY - startY > 70) this.closeModal('repositoryModal');
+                }, { passive: true });
+                // 배경 탭으로 닫기
+                modal?.addEventListener('click', e => { if (e.target === modal) this.closeModal('repositoryModal'); }, { once: false });
             }
 
             switchRepoTab(tab) {
