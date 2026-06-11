@@ -1556,6 +1556,16 @@
         .repo-action-btn.download { color: var(--accent); background: rgba(37,99,235,0.07); }
         .repo-action-btn.delete { color: #ef4444; background: rgba(239,68,68,0.07); }
         .repo-action-btn:active { opacity: 0.7; transform: scale(0.93); }
+        .repo-link-btn {
+            height: 28px; padding: 0 10px; border-radius: 6px; border: 1.5px solid rgba(139,92,246,0.35);
+            background: none; color: #7c3aed; font-family: inherit;
+            font-size: 0.72rem; font-weight: 700; cursor: pointer; white-space: nowrap;
+            touch-action: manipulation; transition: all 0.15s;
+        }
+        .repo-link-btn.linked {
+            background: rgba(139,92,246,0.1); border-color: #7c3aed;
+        }
+        .repo-link-btn:active { opacity: 0.75; }
         .repo-empty {
             padding: 40px 20px; text-align: center;
             color: var(--text-muted); font-size: 0.85rem;
@@ -2857,6 +2867,7 @@
                         this._restoreLastWorkflow();
                     }, 700);
                     setTimeout(() => this._retryFailedEmbeddings(), 4000);
+                    setTimeout(() => this._retryFailedLawEmbeddings().catch(() => {}), 7000);
                     // 외부 클릭 시 헤더 드롭다운 닫기
                     document.addEventListener('click', (e) => {
                         const dd = document.getElementById('headerDropdown');
@@ -4753,16 +4764,32 @@
                 if (useWorkflowContext) {
                     const wf = this.getCurrentWorkflow();
                     if (wf) {
-                        // 0-a) 법령매뉴얼 연결 문서: linkedLibraryDocs 배열이 있으면 lawLibrary 스토어에서 로드
+                        // 0-a) 법령매뉴얼 연결 문서: lawIds(모바일) 또는 linkedLibraryDocs/linkedLawDocs(데스크탑) 에서 로드
                         try {
-                            const linkedIds = wf.linkedLibraryDocs || wf.linkedLawDocs || [];
+                            const linkedIds = [
+                                ...(wf.lawIds || []),
+                                ...(wf.linkedLibraryDocs || wf.linkedLawDocs || [])
+                            ].filter((v, i, a) => a.indexOf(v) === i); // 중복 제거
                             if (linkedIds.length > 0) {
                                 const lawDocs = await this.dbManager.getLawDocsByIds(linkedIds);
                                 if (lawDocs.length > 0) {
                                     context += `[법령매뉴얼 연결 문서]\n`;
                                     for (const ld of lawDocs.slice(0, 3)) {
                                         context += `📗 ${ld.filename || '법령문서'}\n`;
-                                        const excerpt = ld.content ? ld.content.substring(0, 2000) : (ld.summary || '');
+                                        const rawContent = ld.content || ld.summary || '';
+                                        let excerpt = '';
+                                        const embChunks = (ld.chunkEmbeddings || []).filter(c => c.embedding?.length > 0);
+                                        if (embChunks.length > 0 && apiKey && provider === 'gemini') {
+                                            try {
+                                                const topChunks = await searchChunksByEmbedding(embChunks, userText, apiKey, 8);
+                                                if (topChunks.length > 0) excerpt = topChunks.map(c => c.text).join('\n\n');
+                                            } catch(_e) {}
+                                        }
+                                        if (!excerpt) {
+                                            excerpt = rawContent.length > 2000
+                                                ? this.extractRelevantText(rawContent, userText, 2000)
+                                                : rawContent;
+                                        }
                                         if (excerpt) context += `${truncate(excerpt, 2000)}\n\n`;
                                     }
                                     context += `--- 법령매뉴얼 끝 ---\n\n`;
@@ -5201,8 +5228,10 @@
                     completedExperience += '\n';
                 }
 
-                // 연결된 법령/매뉴얼 (workflow 단위 lawIds) 내용 로드
+                // 연결된 법령/매뉴얼 (workflow 단위 lawIds) 내용 로드 — 시맨틱 검색 우선
                 let linkedLawContext = '';
+                const _lwProvider = this.allData.provider;
+                const _lwApiKey = _lwProvider === 'gemini' ? this.allData.geminiApiKey : '';
                 try {
                     const lawIds = (latestWorkflow || workflow).lawIds || [];
                     if (lawIds.length > 0) {
@@ -5211,7 +5240,23 @@
                             linkedLawContext = '[연결된 법령/매뉴얼]\n';
                             for (const ld of lawDocs) {
                                 const content = ld.content || '';
-                                const snippet = content.length > 1500 ? content.substring(0, 1500) + '…' : content;
+                                let snippet = '';
+                                const embChunks = (ld.chunkEmbeddings || []).filter(c => c.embedding?.length > 0);
+                                if (embChunks.length > 0 && _lwApiKey) {
+                                    // 시맨틱 검색: 현재 항목 텍스트 기준 상위 청크 추출
+                                    try {
+                                        const topChunks = await searchChunksByEmbedding(embChunks, currentItem.text, _lwApiKey, 8);
+                                        if (topChunks.length > 0) {
+                                            snippet = topChunks.map(c => c.text).join('\n\n');
+                                        }
+                                    } catch(_e) {}
+                                }
+                                if (!snippet) {
+                                    // 폴백: 키워드 기반 관련 문단 추출
+                                    snippet = content.length > 2500
+                                        ? this.extractRelevantText(content, currentItem.text, 2500)
+                                        : content;
+                                }
                                 linkedLawContext += `【${ld.filename}】\n${snippet || '(텍스트 없음)'}\n\n`;
                             }
                         }
@@ -6164,6 +6209,17 @@ ${deadlineInfo ? `- 마감일 고려: ${deadlineInfo.includes('오늘 마감') ?
                                     }
                                 }
 
+                                // workflow.lawIds 설정 (데스크탑 형식은 lawIds 필드가 없음)
+                                for (const pid of linkedProjectIds) {
+                                    const mwf = this.allData.workflows.find(w => w.id === pid);
+                                    if (mwf) {
+                                        if (!mwf.lawIds) mwf.lawIds = [];
+                                        if (!mwf.lawIds.includes(ldoc.id)) {
+                                            mwf.lawIds.push(ldoc.id);
+                                            await this.saveWorkflow(mwf).catch(() => {});
+                                        }
+                                    }
+                                }
                                 const content = ldoc.content || ldoc.text || '';
                                 if (content.length >= 50) {
                                     for (const pid of linkedProjectIds) {
@@ -6204,10 +6260,18 @@ ${deadlineInfo ? `- 마감일 고려: ${deadlineInfo.includes('오늘 마감') ?
                                 await this.dbManager.saveFormDoc(entry);
                             } catch(e) { console.warn('formLibraryData 복원 실패:', e); }
                         }
-                        const fCount = packageData.formLibraryData.length;
-                        const lCount = (packageData.lawLibraryData||[]).length;
-                        if (lCount + fCount > 0) {
-                            this.showToast('info', '📚', `저장소 복원: 법령 ${lCount}개, 서식 ${fCount}개`);
+                    }
+                    const _fCount = (packageData.formLibraryData||[]).length;
+                    const _lCount = (packageData.lawLibraryData||[]).length;
+                    if (_lCount + _fCount > 0) {
+                        this.showToast('info', '📚', `저장소 복원: 법령 ${_lCount}개, 서식 ${_fCount}개`);
+                    }
+
+                    // ── 법령 임베딩 백그라운드 생성 ──
+                    if (_lCount > 0) {
+                        const _lawApiKey = this.allData.geminiApiKey;
+                        if (_lawApiKey) {
+                            setTimeout(() => this._retryFailedLawEmbeddings().catch(() => {}), 3000);
                         }
                     }
 
@@ -6627,9 +6691,38 @@ ${deadlineInfo ? `- 마감일 고려: ${deadlineInfo.includes('오늘 마감') ?
                 const modal = document.getElementById(modalId);
                 if (modal) {
                     modal.classList.remove('show');
-                    // 다른 모달이 열려있으면 스크롤 잠금 유지
                     const hasAnyOpenModal = document.querySelector('.modal.show');
                     document.body.style.overflow = hasAnyOpenModal ? 'hidden' : '';
+                }
+                if (modalId === 'repositoryModal' && this._linkWorkflowId) {
+                    this._renderClLawBar(this._linkWorkflowId);
+                    this._linkWorkflowId = null;
+                }
+            }
+
+            _openLawLinkRepo(workflowId) {
+                this._linkWorkflowId = workflowId;
+                this.openRepository('law');
+            }
+
+            async _toggleLawLinkFromRepo(lawId) {
+                const workflowId = this._linkWorkflowId;
+                if (!workflowId) return;
+                const wf = this.allData.workflows.find(w => w.id === workflowId);
+                if (!wf) return;
+                if (!wf.lawIds) wf.lawIds = [];
+                if (wf.lawIds.includes(lawId)) {
+                    wf.lawIds = wf.lawIds.filter(x => x !== lawId);
+                } else {
+                    wf.lawIds.push(lawId);
+                }
+                await this.saveWorkflow(wf);
+                // 버튼 상태 즉시 업데이트
+                const btn = document.getElementById(`rlb_${lawId}`);
+                if (btn) {
+                    const isLinked = wf.lawIds.includes(lawId);
+                    btn.textContent = isLinked ? '✔ 연결됨' : '연결';
+                    btn.className = `repo-link-btn${isLinked ? ' linked' : ''}`;
                 }
             }
 
@@ -7426,6 +7519,13 @@ ${pdfContent.length > 100000 ? pdfContent.substring(0, 100000) + '\n\n[중략: �
                     ? `<button class="repo-action-btn download" onclick="app._downloadFormDoc('${doc.id}')" title="다운로드">
                         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                        </button>` : '';
+                let linkBtn = '';
+                if (type === 'law' && this._linkWorkflowId) {
+                    const wf = this.allData.workflows.find(w => w.id === this._linkWorkflowId);
+                    const isLinked = (wf?.lawIds || []).includes(doc.id);
+                    linkBtn = `<button class="repo-link-btn${isLinked ? ' linked' : ''}" id="rlb_${doc.id}"
+                        onclick="app._toggleLawLinkFromRepo('${doc.id}')">${isLinked ? '✔ 연결됨' : '연결'}</button>`;
+                }
                 return `
                     <div class="repo-item" data-name="${this.escapeHtml(doc.filename||'').toLowerCase()}">
                         <div class="repo-item-icon ${type}"><span>${icon}</span></div>
@@ -7434,6 +7534,7 @@ ${pdfContent.length > 100000 ? pdfContent.substring(0, 100000) + '\n\n[중략: �
                             <div class="repo-item-meta">${size}${size&&date?' · ':''}${date}</div>
                         </div>
                         <div class="repo-item-actions">
+                            ${linkBtn}
                             ${dl}
                             <button class="repo-action-btn delete" onclick="app._deleteRepoDoc('${doc.id}','${type}')" title="삭제">
                                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
@@ -7478,6 +7579,13 @@ ${pdfContent.length > 100000 ? pdfContent.substring(0, 100000) + '\n\n[중략: �
                                 const text = await this._extractTextFromBlob(blob, file.name);
                                 if (text) doc.content = text;
                                 await this.dbManager.saveLawDoc(doc);
+                                // 백그라운드 임베딩 생성 (Gemini 키 있을 때)
+                                const _ak = this.allData.geminiApiKey;
+                                if (_ak && doc.content) {
+                                    this._embedLawDoc(doc.id, _ak)
+                                        .then(ok => { if (ok) this.showToast('info', '⚖️', `${file.name} 벡터 임베딩 완료`); })
+                                        .catch(() => {});
+                                }
                             } else {
                                 await this.dbManager.saveFormDoc(doc);
                             }
@@ -7960,7 +8068,7 @@ ${pdfContent.length > 100000 ? pdfContent.substring(0, 100000) + '\n\n[중략: �
                     ).join('');
                 }
                 bar.innerHTML = chips +
-                    `<button class="cl-law-add-btn" onclick="app._openWorkflowLawPicker(${workflowId})">
+                    `<button class="cl-law-add-btn" onclick="app._openLawLinkRepo(${workflowId})">
                         <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                         법령 연결
                      </button>`;
@@ -8197,6 +8305,69 @@ ${pdfContent.length > 100000 ? pdfContent.substring(0, 100000) + '\n\n[중략: �
                     }
                 } catch(e) {
                     console.warn('임베딩 재시도 오류:', e);
+                }
+            }
+
+            // 법령/매뉴얼 문서 청크 임베딩 생성 (lawLibrary 스토어)
+            async _embedLawDoc(docId, apiKey) {
+                if (!apiKey || !docId) return false;
+                try {
+                    const found = await this.dbManager.getLawDocsByIds([docId]);
+                    const lawDoc = found[0];
+                    if (!lawDoc?.content || lawDoc.content.trim().length < 50) return false;
+
+                    // 이미 임베딩 완료된 경우 스킵
+                    if (lawDoc.chunkEmbeddings?.some(c => c.embedding?.length > 0)) return true;
+
+                    const chunks = createSemanticChunks(lawDoc.content, 800, 100);
+                    if (chunks.length === 0) return false;
+
+                    const BATCH_SIZE = 3;
+                    const embeddedChunks = [];
+                    for (let i = 0; i < chunks.length; i += BATCH_SIZE) {
+                        if (_remainingRPD() <= 0) break;
+                        const batch = chunks.slice(i, i + BATCH_SIZE);
+                        try {
+                            const vecs = await generateBatchEmbeddings(batch.map(c => c.text), apiKey);
+                            batch.forEach((chunk, j) => embeddedChunks.push({ ...chunk, embedding: vecs[j] ?? null }));
+                        } catch(e) {
+                            batch.forEach(chunk => embeddedChunks.push({ ...chunk, embedding: null }));
+                        }
+                        if (i + BATCH_SIZE < chunks.length) await new Promise(r => setTimeout(r, 20000));
+                    }
+
+                    const ok = embeddedChunks.filter(c => c.embedding?.length > 0).length;
+                    if (ok === 0) return false;
+
+                    await this.dbManager.saveLawDoc({
+                        ...lawDoc,
+                        chunkEmbeddings: embeddedChunks,
+                        embeddedAt: new Date().toISOString(),
+                        embeddedChunkCount: ok
+                    });
+                    return true;
+                } catch(e) {
+                    console.warn('법령 임베딩 실패:', docId, e);
+                    return false;
+                }
+            }
+
+            // 임베딩 없는 법령 문서 백그라운드 재시도
+            async _retryFailedLawEmbeddings() {
+                const apiKey = this.allData.provider === 'gemini' ? this.allData.geminiApiKey : '';
+                if (!apiKey) return;
+                try {
+                    const allDocs = await this.dbManager.getAllLawDocs();
+                    const toEmbed = allDocs.filter(d =>
+                        d.content?.trim().length >= 50 &&
+                        !d.chunkEmbeddings?.some(c => c.embedding?.length > 0)
+                    );
+                    for (const d of toEmbed) {
+                        if (_remainingRPD() <= 0) break;
+                        await this._embedLawDoc(d.id, apiKey);
+                    }
+                } catch(e) {
+                    console.warn('법령 임베딩 재시도 오류:', e);
                 }
             }
         }
