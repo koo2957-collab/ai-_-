@@ -1746,9 +1746,12 @@
         .cl-card-sub {
             margin-left: 14px !important;
             border-left: 2.5px solid rgba(37,99,235,0.18) !important;
-            border-radius: 0 8px 8px 0 !important;
+            border-radius: 8px !important;
             background: rgba(248,250,252,0.8) !important;
         }
+        .cl-card-sub .cl-card-row { padding: 8px 10px 8px 8px !important; }
+        .cl-card-sub .cl-check-wrap { width: 36px !important; height: 36px !important; margin: -3px -2px !important; }
+        .cl-card-sub .cl-checkbox { width: 16px !important; height: 16px !important; }
         .cl-card-sub .cl-num { font-size: 0.71rem; color: var(--text-muted); min-width: 22px; }
         .cl-card-sub .cl-text { font-size: 0.84rem; }
         /* 저장소 링크 피커 */
@@ -4972,25 +4975,75 @@
                 item.completed = !this.normalizeCompleted(item);
                 item.completedAt = item.completed ? new Date().toISOString() : null;
 
+                // 하위 항목 완료 시 상위 항목 자동 완료/해제
+                const changedParents = this._syncParentCompletion(workflow, itemIndex);
+
                 this.saveWorkflow(workflow);
                 this.displayWorkflows();
 
-                // 진동 피드백 (체크 시만)
-                // 진동 피드백: Android에서만 작동 (iOS는 Vibration API 미지원)
                 if (item.completed && navigator.vibrate) navigator.vibrate(60);
 
-                // 카드만 실시간 업데이트 (전체 재렌더 없이)
-                const card = document.getElementById(`cl-card-${itemIndex}`);
-                const checkbox = card?.querySelector('.cl-checkbox');
-                if (card) {
-                    card.className = `cl-card${item.completed ? ' completed' : ''}`;
-                    const textEl = card.querySelector('.cl-text');
-                    if (textEl) textEl.className = 'cl-text';
-                }
-                if (checkbox) checkbox.checked = item.completed;
+                // 카드 DOM 업데이트 (스크롤 유지)
+                this._updateCardDom(workflow, itemIndex);
+                changedParents.forEach(idx => this._updateCardDom(workflow, idx));
 
                 // 진행률 헤더 갱신
                 this._updateClHeader(workflow);
+            }
+
+            _updateCardDom(workflow, idx) {
+                const item = workflow.checklist[idx];
+                if (!item) return;
+                const card = document.getElementById(`cl-card-${idx}`);
+                if (!card) return;
+                const isCompleted = Boolean(this.normalizeCompleted(item));
+                const isSkipped = item.skipped === true;
+                const isSub = this._isSubItem(item);
+                card.className = ['cl-card', isCompleted ? 'completed' : '', isSkipped ? 'skipped' : '', isSub ? 'cl-card-sub' : ''].filter(Boolean).join(' ');
+                const checkbox = card.querySelector('.cl-checkbox');
+                if (checkbox) checkbox.checked = isCompleted;
+            }
+
+            _syncParentCompletion(workflow, changedIndex, _changed = []) {
+                const items = workflow.checklist;
+                const changedItem = items[changedIndex];
+                const indent = changedItem.indent || 0;
+                if (indent === 0) return _changed;
+
+                // 상위 항목 탐색 (indent가 더 낮은 첫 번째 항목)
+                let parentIdx = -1;
+                for (let i = changedIndex - 1; i >= 0; i--) {
+                    if ((items[i].indent || 0) < indent) { parentIdx = i; break; }
+                }
+                if (parentIdx === -1) return _changed;
+
+                const parent = items[parentIdx];
+                const parentIndent = parent.indent || 0;
+
+                // 같은 indent 레벨의 형제 항목 수집
+                const siblings = [];
+                for (let i = parentIdx + 1; i < items.length; i++) {
+                    const ci = items[i].indent || 0;
+                    if (ci <= parentIndent) break;
+                    if (ci === indent) siblings.push(items[i]);
+                }
+                if (siblings.length === 0) return _changed;
+
+                const allDone = siblings.every(s => this.normalizeCompleted(s) || s.skipped === true);
+                const wasCompleted = this.normalizeCompleted(parent);
+
+                if (allDone && !wasCompleted) {
+                    parent.completed = true;
+                    parent.completedAt = new Date().toISOString();
+                    _changed.push(parentIdx);
+                    return this._syncParentCompletion(workflow, parentIdx, _changed);
+                } else if (!allDone && wasCompleted) {
+                    parent.completed = false;
+                    parent.completedAt = null;
+                    _changed.push(parentIdx);
+                    return this._syncParentCompletion(workflow, parentIdx, _changed);
+                }
+                return _changed;
             }
 
             async showAIGuide(workflowId, itemIndex) {
