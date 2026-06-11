@@ -1707,6 +1707,12 @@
         }
         .cl-law-chip-name {
             overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+            cursor: pointer; text-decoration: underline dotted rgba(124,58,237,0.5);
+        }
+        .cl-law-chip-name:hover { color: #5b21b6; }
+        .law-viewer-content {
+            font-size: 13px; line-height: 1.7; color: var(--text-primary);
+            white-space: pre-wrap; word-break: break-word; padding: 0 0 16px;
         }
         .cl-law-chip-del {
             background: none; border: none; cursor: pointer;
@@ -6236,6 +6242,68 @@ ${deadlineInfo ? `- 마감일 고려: ${deadlineInfo.includes('오늘 마감') ?
                         }
                     }
 
+                    // ── 데스크탑 법령매뉴얼 형식: lawLibraryData = {files:[...], groups:[...]} ──
+                    const _deskLaw = packageData.lawLibraryData;
+                    if (_deskLaw && !Array.isArray(_deskLaw) && Array.isArray(_deskLaw.files) && _deskLaw.files.length > 0) {
+                        const _lawIdMap = {}; // originalId → new mobile id
+                        let _deskLawCount = 0;
+                        for (const _f of _deskLaw.files) {
+                            if (!_f) continue;
+                            const _origId = _f.originalId ?? _f.id;
+                            if (_origId == null) continue;
+                            try {
+                                const _nid = `law-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+                                const _entry = {
+                                    id: _nid,
+                                    filename: _f.name || _f.filename || '법령문서',
+                                    size: _f.size || 0,
+                                    uploadedAt: _f.uploadedAt || new Date().toISOString(),
+                                    content: _f.content || _f.text || ''
+                                };
+                                if (_f.base64Data || _f.blobBase64) {
+                                    const _b64 = _f.base64Data || _f.blobBase64;
+                                    const _mime = _f.type || _f.blobType || 'application/pdf';
+                                    _entry.blob = this.base64ToBlob(_b64, _mime);
+                                    if (!_entry.content && _entry.blob) {
+                                        try {
+                                            const _txt = await this._extractTextFromBlob(_entry.blob, _entry.filename);
+                                            if (_txt) _entry.content = _txt;
+                                        } catch(_) {}
+                                    }
+                                }
+                                await this.dbManager.saveLawDoc(_entry);
+                                _lawIdMap[String(_origId)] = _nid;
+                                _deskLawCount++;
+                            } catch(_e) { console.warn('데스크탑 법령 복원 실패:', _e); }
+                        }
+                        // linkedLibraryDocs → wf.lawIds 매핑
+                        if (packageData.checklistDetailsMap) {
+                            for (const [_key, _det] of Object.entries(packageData.checklistDetailsMap)) {
+                                const _linkedIds = _det?.linkedLibraryDocs || [];
+                                if (!_linkedIds.length) continue;
+                                const _m = _key.match(/^project-(.+)$/);
+                                if (!_m) continue;
+                                const _oldPid = String(_m[1]);
+                                const _mwf = this.allData.workflows.find(
+                                    w => w.originalId != null && String(w.originalId) === _oldPid
+                                );
+                                if (!_mwf) continue;
+                                if (!_mwf.lawIds) _mwf.lawIds = [];
+                                for (const _oli of _linkedIds) {
+                                    const _nli = _lawIdMap[String(_oli)];
+                                    if (_nli && !_mwf.lawIds.includes(_nli)) _mwf.lawIds.push(_nli);
+                                }
+                                if (_mwf.lawIds.length > 0) await this.saveWorkflow(_mwf).catch(() => {});
+                            }
+                        }
+                        if (_deskLawCount > 0) {
+                            this.showToast('info', '⚖️', `법령/매뉴얼 ${_deskLawCount}개 복원`);
+                            if (this.allData.geminiApiKey) {
+                                setTimeout(() => this._retryFailedLawEmbeddings().catch(() => {}), 3000);
+                            }
+                        }
+                    }
+
                     // ── 모바일 저장소 lawLibraryData / formLibraryData 복원 ──
                     if (Array.isArray(packageData.lawLibraryData) && packageData.lawLibraryData.length > 0) {
                         for (const d of packageData.lawLibraryData) {
@@ -8062,13 +8130,13 @@ ${pdfContent.length > 100000 ? pdfContent.substring(0, 100000) + '\n\n[중략: �
                     const docs = await this.dbManager.getLawDocsByIds(lawIds);
                     chips = docs.map(d =>
                         `<span class="cl-law-chip">
-                            <span class="cl-law-chip-name" title="${this.escapeHtml(d.filename)}">⚖️ ${this.escapeHtml(d.filename)}</span>
+                            <span class="cl-law-chip-name" title="${this.escapeHtml(d.filename)}" onclick="app._openLawDocViewer('${d.id}')">⚖️ ${this.escapeHtml(d.filename)}</span>
                             <button class="cl-law-chip-del" onclick="app._removeWorkflowLaw(${workflowId},'${d.id}')">×</button>
                          </span>`
                     ).join('');
                 }
                 bar.innerHTML = chips +
-                    `<button class="cl-law-add-btn" onclick="app._openLawLinkRepo(${workflowId})">
+                    `<button class="cl-law-add-btn" onclick="app._openWorkflowLawPicker(${workflowId})">
                         <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                         법령 연결
                      </button>`;
@@ -8139,6 +8207,57 @@ ${pdfContent.length > 100000 ? pdfContent.substring(0, 100000) + '\n\n[중략: �
                 wf.lawIds = (wf.lawIds || []).filter(x => x !== lawId);
                 await this.saveWorkflow(wf);
                 this._renderClLawBar(workflowId);
+            }
+
+            // 법령/매뉴얼 문서 뷰어 (모바일 바텀시트)
+            async _openLawDocViewer(lawId) {
+                const found = await this.dbManager.getLawDocsByIds([lawId]).catch(() => []);
+                const doc = found[0];
+                if (!doc) { this.showToast('error', '❌', '문서를 불러올 수 없습니다'); return; }
+                const ov = document.createElement('div');
+                ov.className = 'action-sheet-overlay';
+                ov.style.zIndex = '3300';
+                const contentHtml = doc.content?.trim()
+                    ? `<div class="law-viewer-content">${this.escapeHtml(doc.content)}</div>`
+                    : `<div class="repo-empty" style="padding:20px 0;"><div class="repo-empty-icon">📄</div>텍스트 내용 없음<br><small style="margin-top:4px;display:block;color:var(--text-muted)">PDF 파일은 다운로드 후 확인하세요</small></div>`;
+                const dlBtn = doc.blob
+                    ? `<button class="btn btn-secondary" style="flex:1;" onclick="app._downloadLawDocFromViewer('${doc.id}')">⬇ 다운로드</button>`
+                    : '';
+                const chunks = doc.chunkEmbeddings?.filter(c => c.embedding?.length > 0).length || 0;
+                const embBadge = chunks > 0
+                    ? `<span style="font-size:11px;color:#8b5cf6;background:#ede9fe;border-radius:10px;padding:2px 7px;flex-shrink:0;">AI ${chunks}청크</span>`
+                    : '';
+                ov.innerHTML = `
+                    <div class="action-sheet" style="max-height:82vh;display:flex;flex-direction:column;padding:0;">
+                        <div class="action-sheet-title" style="display:flex;align-items:center;gap:8px;flex-shrink:0;padding:14px 16px 8px;">
+                            <span style="font-size:16px;">⚖️</span>
+                            <span style="flex:1;font-size:13px;font-weight:600;word-break:break-all;line-height:1.3;">${this.escapeHtml(doc.filename)}</span>
+                            ${embBadge}
+                        </div>
+                        <div style="padding:0 16px 8px;font-size:11px;color:var(--text-muted);flex-shrink:0;">
+                            ${doc.size ? this._fmtBytes(doc.size) : ''}${doc.uploadedAt ? (doc.size ? ' · ' : '') + doc.uploadedAt.slice(0,10) : ''}
+                        </div>
+                        <div style="flex:1;overflow-y:auto;padding:0 16px;border-top:1px solid var(--border-subtle);">
+                            ${contentHtml}
+                        </div>
+                        <div style="padding:12px 16px;display:flex;gap:8px;flex-shrink:0;border-top:1px solid var(--border-subtle);">
+                            ${dlBtn}
+                            <button class="btn btn-primary" style="flex:1;" onclick="this.closest('.action-sheet-overlay').remove()">닫기</button>
+                        </div>
+                    </div>`;
+                ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+                document.body.appendChild(ov);
+            }
+
+            async _downloadLawDocFromViewer(lawId) {
+                const found = await this.dbManager.getLawDocsByIds([lawId]).catch(() => []);
+                const doc = found[0];
+                if (!doc?.blob) { this.showToast('error', '❌', '파일이 없습니다'); return; }
+                const url = URL.createObjectURL(doc.blob);
+                const a = document.createElement('a');
+                a.href = url; a.download = doc.filename || '법령문서';
+                document.body.appendChild(a); a.click(); document.body.removeChild(a);
+                setTimeout(() => URL.revokeObjectURL(url), 3000);
             }
 
             // Blob에서 텍스트 추출 (PDF/DOCX/TXT 지원)
